@@ -1,4 +1,4 @@
-const mysql = require('mysql2/promise');
+const mysql = require('mysql2');
 require('dotenv').config();
 
 // Database configuration
@@ -10,9 +10,9 @@ const dbConfig = {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    ssl: {
-        rejectUnauthorized: false // Aiven free plan
-    }
+    // ssl: {
+    //     rejectUnauthorized: false // Aiven free plan
+    // }
 };
 
 // Create connection pool

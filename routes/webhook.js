@@ -580,11 +580,11 @@ router.post('/', async (req, res) => {
                         },
                                 customer: { phone_number: phoneNumber }
                             });
-                        }
                     }
-                } catch (e) {
-                    console.error('Socket broadcast error:', e);
                 }
+            } catch (e) {
+                console.error('Socket broadcast error:', e);
+            }
                 
                 continue;
             }
