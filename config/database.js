@@ -10,6 +10,7 @@ const dbConfig = {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
+    port:process.env.DB_PORT || 3306
     // ssl: {
     //     rejectUnauthorized: false // Aiven free plan
     // }
