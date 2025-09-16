@@ -1,0 +1,83 @@
+{
+  "summary": {
+    "totalTests": 4,
+    "passedTests": 4,
+    "failedTests": 0,
+    "successRate": "100.0"
+  },
+  "results": [
+    {
+      "testName": "New Customer Message",
+      "status": "SUCCESS",
+      "statusCode": 200,
+      "response": {
+        "status": "success",
+        "processed": 1,
+        "results": [
+          {
+            "messageId": "wamid.12345678901234567890",
+            "from": "48794740269",
+            "success": true,
+            "error": null
+          }
+        ]
+      },
+      "timestamp": "2025-09-12T06:39:05.717Z"
+    },
+    {
+      "testName": "Existing Customer Message",
+      "status": "SUCCESS",
+      "statusCode": 200,
+      "response": {
+        "status": "success",
+        "processed": 1,
+        "results": [
+          {
+            "messageId": "wamid.12345678901234567891",
+            "from": "48794740269",
+            "success": true,
+            "error": null
+          }
+        ]
+      },
+      "timestamp": "2025-09-12T06:39:11.747Z"
+    },
+    {
+      "testName": "Ticket Details Message",
+      "status": "SUCCESS",
+      "statusCode": 200,
+      "response": {
+        "status": "success",
+        "processed": 1,
+        "results": [
+          {
+            "messageId": "wamid.12345678901234567892",
+            "from": "48794740269",
+            "success": true,
+            "error": null
+          }
+        ]
+      },
+      "timestamp": "2025-09-12T06:39:17.805Z"
+    },
+    {
+      "testName": "Button Response",
+      "status": "SUCCESS",
+      "statusCode": 200,
+      "response": {
+        "status": "success",
+        "processed": 1,
+        "results": [
+          {
+            "messageId": "wamid.12345678901234567893",
+            "from": "48794740269",
+            "success": true,
+            "error": null
+          }
+        ]
+      },
+      "timestamp": "2025-09-12T06:39:23.840Z"
+    }
+  ],
+  "timestamp": "2025-09-12T06:39:23.842Z"
+}
