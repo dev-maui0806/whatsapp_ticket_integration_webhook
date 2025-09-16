@@ -1,4 +1,4 @@
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 // Database configuration
@@ -9,7 +9,10 @@ const dbConfig = {
     database: process.env.DB_NAME || 'whatsapp_ticketing',
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    ssl: {
+        rejectUnauthorized: false // Aiven free plan
+    }
 };
 
 // Create connection pool
