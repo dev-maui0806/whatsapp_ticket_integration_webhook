@@ -16,7 +16,7 @@ const dbConfig = {
         rejectUnauthorized: false // Aiven free plan
     }
 };
-console.log("_____________", dbConfig)
+
 // Create connection pool
 const pool = mysql.createPool(dbConfig);
 
@@ -39,6 +39,7 @@ const testConnection = async () => {
 // Execute query with error handling
 const executeQuery = async (query, params = []) => {
     try {
+        console.log("_______111___", query, params)
         const [rows] = await promisePool.execute(query, params);
         return { success: true, data: rows };
     } catch (error) {
@@ -49,6 +50,8 @@ const executeQuery = async (query, params = []) => {
 
 // Execute transaction
 const executeTransaction = async (queries) => {
+
+    console.log("_____________", dbConfig)
     const connection = await promisePool.getConnection();
     try {
         await connection.beginTransaction();
