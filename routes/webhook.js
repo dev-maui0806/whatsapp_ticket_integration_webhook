@@ -553,7 +553,7 @@ router.post('/', async (req, res) => {
                         buttons
                     );
 
-                    // await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, 'new_ticket_question');
+                    await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, 'new_ticket_question');
                 }
                 continue;
             }
