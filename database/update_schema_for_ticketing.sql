@@ -47,43 +47,43 @@ CREATE TABLE IF NOT EXISTS ticket_form_fields (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert form field definitions for each ticket type
-INSERT INTO ticket_form_fields (ticket_type, field_name, field_label, field_type, is_required, validation_rules, display_order) VALUES
--- Lock Open fields
-('lock_open', 'vehicle_number', 'Vehicle Number', 'text', TRUE, '{"max_length": 20}', 1),
-('lock_open', 'driver_number', 'Driver Number', 'text', TRUE, '{"max_length": 20}', 2),
-('lock_open', 'location', 'Location', 'text', TRUE, '{"max_length": 255}', 3),
-('lock_open', 'comment', 'Comment', 'text', FALSE, '{"max_length": 500}', 4),
+-- -- Insert form field definitions for each ticket type
+-- INSERT INTO ticket_form_fields (ticket_type, field_name, field_label, field_type, is_required, validation_rules, display_order) VALUES
+-- -- Lock Open fields
+-- ('lock_open', 'vehicle_number', 'Vehicle Number', 'text', TRUE, '{"max_length": 20}', 1),
+-- ('lock_open', 'driver_number', 'Driver Number', 'text', TRUE, '{"max_length": 20}', 2),
+-- ('lock_open', 'location', 'Location', 'text', TRUE, '{"max_length": 255}', 3),
+-- ('lock_open', 'comment', 'Comment', 'text', FALSE, '{"max_length": 500}', 4),
 
--- Lock Repair fields
-('lock_repair', 'vehicle_number', 'Vehicle Number', 'text', TRUE, '{"max_length": 20}', 1),
-('lock_repair', 'driver_number', 'Driver Number', 'text', TRUE, '{"max_length": 20}', 2),
-('lock_repair', 'location', 'Location', 'text', TRUE, '{"max_length": 255}', 3),
-('lock_repair', 'availability_date', 'Available Date', 'date', TRUE, NULL, 4),
-('lock_repair', 'availability_time', 'Available Time', 'time', TRUE, NULL, 5),
-('lock_repair', 'comment', 'Comment', 'text', FALSE, '{"max_length": 500}', 6),
+-- -- Lock Repair fields
+-- ('lock_repair', 'vehicle_number', 'Vehicle Number', 'text', TRUE, '{"max_length": 20}', 1),
+-- ('lock_repair', 'driver_number', 'Driver Number', 'text', TRUE, '{"max_length": 20}', 2),
+-- ('lock_repair', 'location', 'Location', 'text', TRUE, '{"max_length": 255}', 3),
+-- ('lock_repair', 'availability_date', 'Available Date', 'date', TRUE, NULL, 4),
+-- ('lock_repair', 'availability_time', 'Available Time', 'time', TRUE, NULL, 5),
+-- ('lock_repair', 'comment', 'Comment', 'text', FALSE, '{"max_length": 500}', 6),
 
--- Fund Request fields
-('fund_request', 'vehicle_number', 'Vehicle Number', 'text', TRUE, '{"max_length": 20}', 1),
-('fund_request', 'driver_number', 'Driver Number', 'text', TRUE, '{"max_length": 20}', 2),
-('fund_request', 'amount', 'Amount', 'number', TRUE, '{"max": 99999, "min": 1}', 3),
-('fund_request', 'upi_id', 'UPI ID', 'text', TRUE, '{"max_length": 255}', 4),
-('fund_request', 'comment', 'Comment', 'text', FALSE, '{"max_length": 500}', 5),
+-- -- Fund Request fields
+-- ('fund_request', 'vehicle_number', 'Vehicle Number', 'text', TRUE, '{"max_length": 20}', 1),
+-- ('fund_request', 'driver_number', 'Driver Number', 'text', TRUE, '{"max_length": 20}', 2),
+-- ('fund_request', 'amount', 'Amount', 'number', TRUE, '{"max": 99999, "min": 1}', 3),
+-- ('fund_request', 'upi_id', 'UPI ID', 'text', TRUE, '{"max_length": 255}', 4),
+-- ('fund_request', 'comment', 'Comment', 'text', FALSE, '{"max_length": 500}', 5),
 
--- Fuel Request fields
-('fuel_request', 'fuel_type', 'Fuel Type', 'select', TRUE, '{"options": ["amount", "quantity"]}', 1),
-('fuel_request', 'vehicle_number', 'Vehicle Number', 'text', TRUE, '{"max_length": 20}', 2),
-('fuel_request', 'driver_number', 'Driver Number', 'text', TRUE, '{"max_length": 20}', 3),
-('fuel_request', 'amount', 'Amount', 'number', FALSE, '{"max": 99999, "min": 1}', 4),
-('fuel_request', 'quantity', 'Quantity', 'number', FALSE, '{"max": 9999, "min": 1}', 5),
-('fuel_request', 'upi_id', 'UPI ID', 'text', FALSE, '{"max_length": 255}', 6),
-('fuel_request', 'comment', 'Comment', 'text', FALSE, '{"max_length": 500}', 7),
+-- -- Fuel Request fields
+-- ('fuel_request', 'fuel_type', 'Fuel Type', 'select', TRUE, '{"options": ["amount", "quantity"]}', 1),
+-- ('fuel_request', 'vehicle_number', 'Vehicle Number', 'text', TRUE, '{"max_length": 20}', 2),
+-- ('fuel_request', 'driver_number', 'Driver Number', 'text', TRUE, '{"max_length": 20}', 3),
+-- ('fuel_request', 'amount', 'Amount', 'number', FALSE, '{"max": 99999, "min": 1}', 4),
+-- ('fuel_request', 'quantity', 'Quantity', 'number', FALSE, '{"max": 9999, "min": 1}', 5),
+-- ('fuel_request', 'upi_id', 'UPI ID', 'text', FALSE, '{"max_length": 255}', 6),
+-- ('fuel_request', 'comment', 'Comment', 'text', FALSE, '{"max_length": 500}', 7),
 
--- Other fields
-('other', 'comment', 'Comment', 'text', TRUE, '{"max_length": 500}', 1);
+-- -- Other fields
+-- ('other', 'comment', 'Comment', 'text', TRUE, '{"max_length": 500}', 1);
 
--- Update existing tickets to have proper issue_type values
-UPDATE tickets SET issue_type = 'other' WHERE issue_type = 'vehicle_status';
+-- -- Update existing tickets to have proper issue_type values
+-- UPDATE tickets SET issue_type = 'other' WHERE issue_type = 'vehicle_status';
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_conversation_states_phone ON conversation_states(phone_number);
