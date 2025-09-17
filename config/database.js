@@ -39,8 +39,9 @@ const testConnection = async () => {
 // Execute query with error handling
 const executeQuery = async (query, params = []) => {
     try {
-        console.log("_______111___", query, params)
-        const [rows] = await pool.execute(query, params);
+        console.log("_______111___", query, );
+        conbsole.log("_________222______", params);
+        const [rows] = await promisePool.execute(query, params);
         return { success: true, data: rows };
     } catch (error) {
         console.error('Database query error:', error);
