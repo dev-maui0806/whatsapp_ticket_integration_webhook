@@ -40,7 +40,7 @@ const testConnection = async () => {
 const executeQuery = async (query, params = []) => {
     try {
         console.log("_______111___", query, );
-        conbsole.log("_________222______", params);
+        console.log("_________222______", params);
         const [rows] = await promisePool.execute(query, params);
         return { success: true, data: rows };
     } catch (error) {
