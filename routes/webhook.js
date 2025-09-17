@@ -469,6 +469,7 @@ router.post('/', async (req, res) => {
         console.log("webhook_post", req.body);
         // Process webhook data
         const messages = whatsappService.processWebhook(req.body);
+        console.log("messages", messages);
         if (messages.length === 0) {
             console.log('No messages to process');
             return res.status(200).json({ status: 'success', message: 'No messages to process' });

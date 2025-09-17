@@ -251,7 +251,7 @@ class WhatsAppService {
             const entry = webhookData?.entry?.[0];
             const changes = entry?.changes?.[0];
             const value = changes?.value || {};
-
+            console.log("$$$$$$$$$$$", changes, value)
             if (value.messages) {
                 return value.messages
                     .map(message => ({
