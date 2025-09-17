@@ -10,12 +10,13 @@ const dbConfig = {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    port:process.env.DB_PORT || 3306
-    // ssl: {
-    //     rejectUnauthorized: false // Aiven free plan
-    // }
+    port:process.env.DB_PORT || 3306,
+    ssl: {
+        mode: 'required',
+        rejectUnauthorized: false // Aiven free plan
+    }
 };
-
+console.log("_____________", dbConfig)
 // Create connection pool
 const pool = mysql.createPool(dbConfig);
 
