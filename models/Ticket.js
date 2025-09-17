@@ -125,38 +125,15 @@ class Ticket {
         const params = [];
       
         if (status) {
-          query += ' WHERE t.status = ?';
+        //   query += ' WHERE t.status = ?';
           params.push(status);
         }
       
         // FIXED PART:
-        query += ' ORDER BY t.created_at DESC LIMIT ?, ?';
+        // query += ' ORDER BY t.created_at DESC LIMIT ?, ?';
         params.push(offset, limit);
       
-        const result = await executeQuery(query, params);
-        return result;
-      }static async getAll(page = 1, limit = 20, status = null) {
-        const offset = (page - 1) * limit;
-        let query = `
-          SELECT t.*, c.phone_number, c.name as customer_name,
-                 u.name as assigned_agent_name
-          FROM tickets t
-          LEFT JOIN customers c ON t.customer_id = c.id
-          LEFT JOIN users u ON t.assigned_agent_id = u.id
-        `;
-      
-        const params = [];
-      
-        if (status) {
-          query += ' WHERE t.status = ?';
-          params.push(status);
-        }
-      
-        // FIXED PART:
-        query += ' ORDER BY t.created_at DESC LIMIT ?, ?';
-        params.push(offset, limit);
-      
-        const result = await executeQuery(query, params);
+        const result = await executeQuery(query, []);
         return result;
       }
 
