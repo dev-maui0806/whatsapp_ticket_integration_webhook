@@ -46,9 +46,9 @@ async function sendWhatsappMessage(phoneNumber, message, app = null) {
 // Helper: Send interactive message with buttons
 async function sendInteractiveMessage(phoneNumber, header, body, footer, buttons) {
     try {
-        const phoneNumberId = '1810065506501128';
+        const phoneNumberId = '639323635919894';
         const token = process.env.WHATSAPP_ACCESS_TOKEN;
-        const url = `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`;
+        const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
 
         const data = {
             messaging_product: 'whatsapp',
