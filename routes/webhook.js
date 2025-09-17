@@ -17,9 +17,9 @@ const conversationStateService = new ConversationStateService();
 async function sendWhatsappMessage(phoneNumber, message, app = null) {
     try {
         console.log("___sendwhatsappMessage___", phoneNumber, message)
-        const phoneNumberId = '1810065506501128'; // Your business number ID
+        const phoneNumberId = '639323635919894'; // Your business number ID
         const token = process.env.WHATSAPP_ACCESS_TOKEN; // Load from .env
-        const url = `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`;
+        const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
 
         const data = {
             messaging_product: 'whatsapp',
