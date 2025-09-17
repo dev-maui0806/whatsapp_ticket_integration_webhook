@@ -16,6 +16,7 @@ const conversationStateService = new ConversationStateService();
 // Helper: Send a WhatsApp message programmatically
 async function sendWhatsappMessage(phoneNumber, message, app = null) {
     try {
+        console.log("___sendwhatsappMessage___", phoneNumber, message)
         const phoneNumberId = '1810065506501128'; // Your business number ID
         const token = process.env.WHATSAPP_ACCESS_TOKEN; // Load from .env
         const url = `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`;
@@ -441,6 +442,7 @@ router.sendWhatsappMessage = sendWhatsappMessage;
 
 // Webhook verification endpoint
 router.get('/', (req, res) => {
+    console.log("webhook_get", req.query)
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
@@ -464,7 +466,7 @@ router.post('/', async (req, res) => {
         // Log webhook data to database
         const logQuery = 'INSERT INTO webhook_logs (webhook_data) VALUES (?)';
         await executeQuery(logQuery, [JSON.stringify(req.body)]);
-
+        console.log("webhook_post", req.body);
         // Process webhook data
         const messages = whatsappService.processWebhook(req.body);
         if (messages.length === 0) {

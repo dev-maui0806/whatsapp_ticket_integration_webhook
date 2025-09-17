@@ -4,7 +4,7 @@ require('dotenv').config();
 class WhatsAppService {
     constructor() {
         this.apiUrl = process.env.WHATSAPP_API_URL;
-        this.accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+        this.accessToken = process.env.WHATSAPP_ACCESS_TOKEN || "EAATpMvZAJA5oBPEhSNwN7MwG76VVPxTykrClLQnHbpzys4yD2okEHArzhUhdcBrotjm8wZArw5YIk9An6hjUvlCfTXA0ZADh2vIZBASRg9hJiAZAR5ZCRGISmeGKNLjkQ9nM6kDYx1X6k5r8yghPipOIiUKRkCa3gTZAnDxN3atm4h56JSlNCCZBxSeHgZCz6";
         this.phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
         this.verifyToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'test_verify_token_12345';
     }
