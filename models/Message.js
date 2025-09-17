@@ -70,10 +70,9 @@ class Message {
             LEFT JOIN users u ON m.sender_id = u.id
             WHERE m.ticket_id = ?
             ORDER BY m.created_at ASC
-            LIMIT ? OFFSET ?
         `;
         
-        const result = await executeQuery(query, [ticketId, limit, offset]);
+        const result = await executeQuery(query, [ticketId]);
         return result;
     }
 
