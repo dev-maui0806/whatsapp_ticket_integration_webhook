@@ -49,7 +49,7 @@ async function sendInteractiveMessage(phoneNumber, header, body, footer, buttons
         const phoneNumberId = '639323635919894';
         const token = process.env.WHATSAPP_ACCESS_TOKEN;
         const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
-
+      
         const data = {
             messaging_product: 'whatsapp',
             to: phoneNumber,
@@ -71,6 +71,8 @@ async function sendInteractiveMessage(phoneNumber, header, body, footer, buttons
             }
         };
 
+        console.log("data", data);
+        
         const headers = {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -140,6 +142,7 @@ async function updateConversationState(phoneNumber, currentStep, ticketType = nu
 
 // Helper: Get conversation state
 async function getConversationState(phoneNumber) {
+
     try {
         const query = `
             SELECT cs.*, t.ticket_number, t.status as ticket_status
@@ -491,7 +494,7 @@ router.post('/', async (req, res) => {
             }
 
             const currentState = stateResult.data;
-
+            console.log("currentState", currentState);
             // Handle /close command
             if (messageText.toLowerCase().trim() === '/close') {
                 if (currentState && currentState.currentTicketId) {
@@ -512,7 +515,7 @@ router.post('/', async (req, res) => {
             }
 
             const hasOpenTickets = openTicketsResult.data && openTicketsResult.data.length > 0;
-
+    
             // If no conversation state exists, this is a first message
             if (!currentState) {
                 if (hasOpenTickets) {
@@ -536,6 +539,8 @@ router.post('/', async (req, res) => {
                     await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, 'ticket_selection');
                 } else {
                     // New customer - ask if they want to create a new ticket
+                    console.log("create_new_ticket", currentState, phoneNumber);
+                    
                     const buttons = [
                         { id: 'create_new_ticket', title: 'Create New Ticket' }
                     ];
@@ -548,7 +553,7 @@ router.post('/', async (req, res) => {
                         buttons
                     );
 
-                    await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, 'new_ticket_question');
+                    // await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, 'new_ticket_question');
                 }
                 continue;
             }
