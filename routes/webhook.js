@@ -17,16 +17,40 @@ const conversationStateService = new ConversationStateService();
 async function sendWhatsappMessage(phoneNumber, message, app = null) {
     try {
         console.log("___sendwhatsappMessage___", phoneNumber, message)
+        
+        // Format phone number properly
+        let formattedPhone = phoneNumber;
+        if (phoneNumber) {
+            // Remove all non-digit characters
+            formattedPhone = phoneNumber.toString().replace(/\D/g, '');
+            
+            // Add country code if not present (assuming India +91)
+            if (formattedPhone.length === 10) {
+                formattedPhone = '91' + formattedPhone;
+            }
+            
+            // Ensure it's not empty
+            if (!formattedPhone) {
+                console.error('❌ Invalid phone number:', phoneNumber);
+                return { success: false, error: 'Invalid phone number' };
+            }
+        } else {
+            console.error('❌ Phone number is null or undefined');
+            return { success: false, error: 'Phone number is required' };
+        }
+        
         const phoneNumberId = '639323635919894'; // Your business number ID
         const token = process.env.WHATSAPP_ACCESS_TOKEN; // Load from .env
         const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
 
         const data = {
             messaging_product: 'whatsapp',
-            to: phoneNumber, // Must be in international format, no +
+            to: formattedPhone, // Must be in international format, no +
             type: 'text',
             text: { body: message }
         };
+
+        console.log('📱 Sending message to:', formattedPhone);
 
         const headers = {
             'Authorization': `Bearer ${token}`,
@@ -43,44 +67,27 @@ async function sendWhatsappMessage(phoneNumber, message, app = null) {
     }
 }
 
-// Helper: Send interactive message with buttons
+// Helper: Send interactive message with buttons (TEXT-BASED FOR TESTING)
 async function sendInteractiveMessage(phoneNumber, header, body, footer, buttons) {
     try {
-        const phoneNumberId = '639323635919894';
-        const token = process.env.WHATSAPP_ACCESS_TOKEN;
-        const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
-      
-        const data = {
-            messaging_product: 'whatsapp',
-            to: phoneNumber,
-            type: 'interactive',
-            interactive: {
-                type: 'button',
-                header: { type: 'text', text: header },
-                body: { text: body },
-                footer: { text: footer },
-                action: {
-                    buttons: buttons.map((button, index) => ({
-                        type: 'reply',
-                        reply: {
-                            id: button.id,
-                            title: button.title
-                        }
-                    }))
-                }
-            }
-        };
-
-        console.log("data", data);
+        // For testing purposes, send as text message instead of interactive
+        console.log("📱 [TESTING MODE] Converting interactive message to text");
         
-        const headers = {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        };
-
-        const response = await axios.post(url, data, { headers });
-        console.log('✅ Interactive message sent:', response.data);
-        return { success: true, data: response.data };
+        // Format the message with options
+        let messageText = `\n📋 ${header}\n\n${body}\n\n`;
+        
+        // Add button options as numbered list
+        buttons.forEach((button, index) => {
+            messageText += `${index + 1}. ${button.title}\n`;
+        });
+        
+        messageText += `\n${footer}\n\nPlease reply with the number (1-${buttons.length}) or the option name.`;
+        
+        // Use the existing sendWhatsappMessage function
+        const result = await sendWhatsappMessage(phoneNumber, messageText);
+        
+        console.log('✅ Interactive message sent as text:', result);
+        return { success: true, data: result, testingMode: true };
 
     } catch (error) {
         console.error('❌ sendInteractiveMessage error:', error.response?.data || error.message);
@@ -410,6 +417,37 @@ async function handleFormFilling(phoneNumber, messageText, currentState) {
     }
 }
 
+// Helper: Parse text response to button selection
+function parseTextResponse(messageText, buttons) {
+    if (!buttons || buttons.length === 0) return null;
+    
+    const text = messageText.toLowerCase().trim();
+    
+    // Check for numeric selection (1, 2, 3, etc.)
+    const numericMatch = text.match(/^(\d+)$/);
+    if (numericMatch) {
+        const index = parseInt(numericMatch[1]) - 1;
+        if (index >= 0 && index < buttons.length) {
+            return buttons[index];
+        }
+    }
+    
+    // Check for exact title match
+    const exactMatch = buttons.find(button => 
+        button.title.toLowerCase() === text
+    );
+    if (exactMatch) return exactMatch;
+    
+    // Check for partial title match
+    const partialMatch = buttons.find(button => 
+        text.includes(button.title.toLowerCase()) || 
+        button.title.toLowerCase().includes(text)
+    );
+    if (partialMatch) return partialMatch;
+    
+    return null;
+}
+
 // Helper: Validate field value
 function validateField(field, value) {
     if (field.is_required && (!value || value.trim() === '')) {
@@ -485,10 +523,10 @@ router.post('/', async (req, res) => {
 
             const phoneNumber = whatsappService.formatPhoneNumber(message.from);
             const messageText = message.text || '';
-
-            // Get curren  t conversation state
+           
+            // Get current conversation state
             const stateResult = await getConversationState(phoneNumber);
-            console.log("****************", phoneNumber, messageText, stateResult)
+            console.log("***************", phoneNumber, messageText, stateResult)
             if (!stateResult.success) {
                 console.error('Failed to get conversation state:', stateResult.error);
                 continue;
@@ -620,20 +658,49 @@ router.post('/', async (req, res) => {
 
                     await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, 'ticket_type_selection');
                 } else {
-                    // Try to parse ticket selection
-                    const numeric = messageText.replace(/[^0-9]/g, '');
-                    const selectedTicket = openTicketsResult.data.find(t => 
-                        t.ticket_number === messageText || 
-                        t.ticket_number === `TCK-${numeric}` ||
-                        t.id.toString() === numeric
-                    );
+                    // Try to parse ticket selection from text response
+                    const buttons = [
+                        ...openTicketsResult.data.slice(0, 10).map(t => ({
+                            id: `select_ticket_${t.id}`,
+                            title: `${t.ticket_number || 'TCK-' + t.id}`
+                        })),
+                        { id: 'create_new_ticket', title: 'Create New Ticket' }
+                    ];
+                    
+                    const selectedButton = parseTextResponse(messageText, buttons);
+                    
+                    if (selectedButton && selectedButton.id === 'create_new_ticket') {
+                        // Show ticket type selection
+                        const typeButtons = [
+                            { id: 'type_lock_open', title: 'Unlock' },
+                            { id: 'type_lock_repair', title: 'Unlock Repair' },
+                            { id: 'type_fund_request', title: 'Funding Request' },
+                            { id: 'type_fuel_request', title: 'Fuel Request' },
+                            { id: 'type_other', title: 'Other' }
+                        ];
 
-                    if (selectedTicket) {
-                        // Bind to selected ticket
-                        await updateConversationState(phoneNumber, 'OPEN', null, {}, selectedTicket.id, null);
-                        await sendWhatsappMessage(phoneNumber, `You are now chatting on ticket ${selectedTicket.ticket_number}. Send your message.`);
+                        await sendInteractiveMessage(
+                            phoneNumber,
+                            'Create New Ticket',
+                            'Select the type of ticket you want to create:',
+                            'Choose an option below',
+                            typeButtons
+                        );
+
+                        await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, 'ticket_type_selection');
+                    } else if (selectedButton && selectedButton.id.startsWith('select_ticket_')) {
+                        const ticketId = selectedButton.id.replace('select_ticket_', '');
+                        const selectedTicket = openTicketsResult.data.find(t => t.id.toString() === ticketId);
+                        
+                        if (selectedTicket) {
+                            // Bind to selected ticket
+                            await updateConversationState(phoneNumber, 'OPEN', null, {}, selectedTicket.id, null);
+                            await sendWhatsappMessage(phoneNumber, `You are now chatting on ticket ${selectedTicket.ticket_number}. Send your message.`);
+                        } else {
+                            await sendWhatsappMessage(phoneNumber, 'Invalid ticket selection. Please try again.');
+                        }
                     } else {
-                        await sendWhatsappMessage(phoneNumber, 'Invalid selection. Please try again.');
+                        await sendWhatsappMessage(phoneNumber, 'Invalid selection. Please reply with a number (1-10) or the ticket name.');
                     }
                 }
                 continue;
@@ -641,62 +708,87 @@ router.post('/', async (req, res) => {
 
             // Handle ticket type selection
             if (currentState.automationChatState === 'ticket_type_selection') {
-                let ticketType = null;
-                if (messageText.toLowerCase().includes('unlock') && !messageText.toLowerCase().includes('repair')) {
-                    ticketType = 'lock_open';
-                } else if (messageText.toLowerCase().includes('repair')) {
-                    ticketType = 'lock_repair';
-                } else if (messageText.toLowerCase().includes('fund')) {
-                    ticketType = 'fund_request';
-                } else if (messageText.toLowerCase().includes('fuel')) {
-                    ticketType = 'fuel_request';
-                } else if (messageText.toLowerCase().includes('other')) {
-                    ticketType = 'other';
-                }
+                const buttons = [
+                    { id: 'type_lock_open', title: 'Unlock' },
+                    { id: 'type_lock_repair', title: 'Unlock Repair' },
+                    { id: 'type_fund_request', title: 'Funding Request' },
+                    { id: 'type_fuel_request', title: 'Fuel Request' },
+                    { id: 'type_other', title: 'Other' }
+                ];
+                
+                const selectedButton = parseTextResponse(messageText, buttons);
+                
+                if (selectedButton) {
+                    let ticketType = null;
+                    if (selectedButton.id === 'type_lock_open') {
+                        ticketType = 'lock_open';
+                    } else if (selectedButton.id === 'type_lock_repair') {
+                        ticketType = 'lock_repair';
+                    } else if (selectedButton.id === 'type_fund_request') {
+                        ticketType = 'fund_request';
+                    } else if (selectedButton.id === 'type_fuel_request') {
+                        ticketType = 'fuel_request';
+                    } else if (selectedButton.id === 'type_other') {
+                        ticketType = 'other';
+                    }
 
-                if (ticketType) {
-                    if (ticketType === 'fuel_request') {
-                        // Show fuel type selection
-                        const buttons = [
-                            { id: 'fuel_amount', title: 'Amount' },
-                            { id: 'fuel_quantity', title: 'Quantity' }
-                        ];
+                    if (ticketType) {
+                        if (ticketType === 'fuel_request') {
+                            // Show fuel type selection
+                            const fuelButtons = [
+                                { id: 'fuel_amount', title: 'Amount' },
+                                { id: 'fuel_quantity', title: 'Quantity' }
+                            ];
 
-                        await sendInteractiveMessage(
-                            phoneNumber,
-                            'Fuel Request Type',
-                            'What type of fuel request do you want to make?',
-                            'Choose an option below',
-                            buttons
-                        );
+                            await sendInteractiveMessage(
+                                phoneNumber,
+                                'Fuel Request Type',
+                                'What type of fuel request do you want to make?',
+                                'Choose an option below',
+                                fuelButtons
+                            );
 
-                        await updateConversationState(phoneNumber, 'CLOSE', ticketType, {}, null, 'fuel_type_selection');
+                            await updateConversationState(phoneNumber, 'CLOSE', ticketType, {}, null, 'fuel_type_selection');
+                        } else {
+                            // Start form filling
+                            await updateConversationState(phoneNumber, 'CLOSE', ticketType, {}, null, 'form_filling');
+                            await startFormFilling(phoneNumber, ticketType);
+                        }
                     } else {
-                        // Start form filling
-                        await updateConversationState(phoneNumber, 'CLOSE', ticketType, {}, null, 'form_filling');
-                        await startFormFilling(phoneNumber, ticketType);
+                        await sendWhatsappMessage(phoneNumber, 'Invalid selection. Please try again.');
                     }
                 } else {
-                    await sendWhatsappMessage(phoneNumber, 'Invalid selection. Please try again.');
+                    await sendWhatsappMessage(phoneNumber, 'Invalid selection. Please reply with a number (1-5) or the option name.');
                 }
                 continue;
             }
 
             // Handle fuel type selection
             if (currentState.automationChatState === 'fuel_type_selection') {
-                let fuelType = null;
-                if (messageText.toLowerCase().includes('amount')) {
-                    fuelType = 'amount';
-                } else if (messageText.toLowerCase().includes('quantity')) {
-                    fuelType = 'quantity';
-                }
+                const fuelButtons = [
+                    { id: 'fuel_amount', title: 'Amount' },
+                    { id: 'fuel_quantity', title: 'Quantity' }
+                ];
+                
+                const selectedButton = parseTextResponse(messageText, fuelButtons);
+                
+                if (selectedButton) {
+                    let fuelType = null;
+                    if (selectedButton.id === 'fuel_amount') {
+                        fuelType = 'amount';
+                    } else if (selectedButton.id === 'fuel_quantity') {
+                        fuelType = 'quantity';
+                    }
 
-                if (fuelType) {
-                    const formData = { fuel_type: fuelType };
-                    await updateConversationState(phoneNumber, 'CLOSE', currentState.ticketType, formData, null, 'form_filling');
-                    await startFormFilling(phoneNumber, currentState.ticketType);
+                    if (fuelType) {
+                        const formData = { fuel_type: fuelType };
+                        await updateConversationState(phoneNumber, 'CLOSE', currentState.ticketType, formData, null, 'form_filling');
+                        await startFormFilling(phoneNumber, currentState.ticketType);
+                    } else {
+                        await sendWhatsappMessage(phoneNumber, 'Invalid selection. Please try again.');
+                    }
                 } else {
-                    await sendWhatsappMessage(phoneNumber, 'Invalid selection. Please try again.');
+                    await sendWhatsappMessage(phoneNumber, 'Invalid selection. Please reply with a number (1-2) or the option name.');
                 }
                 continue;
             }
@@ -709,9 +801,15 @@ router.post('/', async (req, res) => {
 
             // Handle new ticket question
             if (currentState.automationChatState === 'new_ticket_question') {
-                if (messageText.toLowerCase().includes('yes') || messageText.toLowerCase().includes('create')) {
+                const buttons = [
+                    { id: 'create_new_ticket', title: 'Create New Ticket' }
+                ];
+                
+                const selectedButton = parseTextResponse(messageText, buttons);
+                
+                if (selectedButton && selectedButton.id === 'create_new_ticket') {
                     // Show ticket type selection
-                    const buttons = [
+                    const typeButtons = [
                         { id: 'type_lock_open', title: 'Unlock' },
                         { id: 'type_lock_repair', title: 'Unlock Repair' },
                         { id: 'type_fund_request', title: 'Funding Request' },
@@ -724,12 +822,31 @@ router.post('/', async (req, res) => {
                         'Create New Ticket',
                         'Select the type of ticket you want to create:',
                         'Choose an option below',
-                        buttons
+                        typeButtons
+                    );
+
+                    await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, 'ticket_type_selection');
+                } else if (messageText.toLowerCase().includes('yes') || messageText.toLowerCase().includes('create')) {
+                    // Fallback for text responses
+                    const typeButtons = [
+                        { id: 'type_lock_open', title: 'Unlock' },
+                        { id: 'type_lock_repair', title: 'Unlock Repair' },
+                        { id: 'type_fund_request', title: 'Funding Request' },
+                        { id: 'type_fuel_request', title: 'Fuel Request' },
+                        { id: 'type_other', title: 'Other' }
+                    ];
+
+                    await sendInteractiveMessage(
+                        phoneNumber,
+                        'Create New Ticket',
+                        'Select the type of ticket you want to create:',
+                        'Choose an option below',
+                        typeButtons
                     );
 
                     await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, 'ticket_type_selection');
                 } else {
-                    await sendWhatsappMessage(phoneNumber, 'Please reply with "yes" to create a new ticket or "no" to cancel.');
+                    await sendWhatsappMessage(phoneNumber, 'Please reply with "1", "yes", or "create" to create a new ticket.');
                 }
                 continue;
             }
