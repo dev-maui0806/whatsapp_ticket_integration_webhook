@@ -486,8 +486,9 @@ router.post('/', async (req, res) => {
             const phoneNumber = whatsappService.formatPhoneNumber(message.from);
             const messageText = message.text || '';
 
-            // Get current conversation state
+            // Get curren  t conversation state
             const stateResult = await getConversationState(phoneNumber);
+            console.log("****************", phoneNumber, messageText, stateResult)
             if (!stateResult.success) {
                 console.error('Failed to get conversation state:', stateResult.error);
                 continue;
