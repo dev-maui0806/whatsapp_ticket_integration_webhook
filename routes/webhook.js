@@ -283,32 +283,55 @@ async function createTicketFromFormData(phoneNumber, ticketType, formData) {
 // Helper: Start form filling process
 async function startFormFilling(phoneNumber, ticketType) {
     try {
+        console.log(`🔍 Starting form filling for phone: ${phoneNumber}, ticketType: ${ticketType}`);
+        
         const fieldsResult = await getFormFields(ticketType);
-        if (!fieldsResult.success || !fieldsResult.data.length) {
+        console.log(`📋 Form fields result:`, fieldsResult);
+        
+        if (!fieldsResult.success) {
+            console.error('❌ Failed to get form fields:', fieldsResult.error);
+            await sendWhatsappMessage(phoneNumber, 'Error getting form fields. Please try again.');
+            return;
+        }
+        
+        if (!fieldsResult.data || fieldsResult.data.length === 0) {
+            console.error('❌ No form fields found for ticket type:', ticketType);
             await sendWhatsappMessage(phoneNumber, 'No form fields found for this ticket type.');
             return;
         }
 
         const firstField = fieldsResult.data[0];
+        console.log(`📝 First field to fill:`, firstField);
+        
         await sendWhatsappMessage(phoneNumber, `Please provide ${firstField.field_label}:`);
         
         await updateConversationState(phoneNumber, 'CLOSE', ticketType, {}, null, 'form_filling');
+        console.log(`✅ Form filling started successfully`);
     } catch (error) {
-        console.error('Error starting form filling:', error);
+        console.error('❌ Error starting form filling:', error);
+        await sendWhatsappMessage(phoneNumber, 'An error occurred while starting the form. Please try again.');
     }
 }
 
 // Helper: Handle form filling
 async function handleFormFilling(phoneNumber, messageText, currentState) {
     try {
+        console.log(`🔍 Handling form filling for phone: ${phoneNumber}, message: ${messageText}`);
+        console.log(`📊 Current state:`, currentState);
+        
         const fieldsResult = await getFormFields(currentState.ticketType);
+        console.log(`📋 Form fields result:`, fieldsResult);
+        
         if (!fieldsResult.success) {
+            console.error('❌ Failed to get form fields:', fieldsResult.error);
             await sendWhatsappMessage(phoneNumber, 'Error getting form fields.');
             return;
         }
 
         const fields = fieldsResult.data;
         const currentFormData = currentState.formData || {};
+        console.log(`📝 Current form data:`, currentFormData);
+        console.log(`📋 Available fields:`, fields);
 
         // Find the next field to fill
         let nextField = null;
@@ -319,12 +342,16 @@ async function handleFormFilling(phoneNumber, messageText, currentState) {
             }
         }
 
+        console.log(`🎯 Next field to fill:`, nextField);
+
         if (!nextField) {
             // All fields filled, create ticket
+            console.log(`✅ All fields filled, creating ticket...`);
             const ticketResult = await createTicketFromFormData(phoneNumber, currentState.ticketType, currentFormData);
+            console.log(`🎫 Ticket creation result:`, ticketResult);
             
             if (ticketResult.success) {
-                await sendWhatsappMessage(phoneNumber, `Ticket has been created. Ticket name is ${ticketResult.ticket.ticket_number}`);
+                await sendWhatsappMessage(phoneNumber, `🎉 Ticket has been created successfully! Ticket number: ${ticketResult.ticket.ticket_number}`);
                 
                 // Show open tickets and create new option
                 const openTicketsResult = await getOpenTickets(phoneNumber);
@@ -350,19 +377,25 @@ async function handleFormFilling(phoneNumber, messageText, currentState) {
                     await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, null);
                 }
             } else {
+                console.error('❌ Failed to create ticket:', ticketResult.error);
                 await sendWhatsappMessage(phoneNumber, 'Failed to create ticket. Please try again.');
             }
             return;
         }
 
         // Validate and save field value
+        console.log(`🔍 Validating field: ${nextField.field_name} with value: ${messageText}`);
         const validation = validateField(nextField, messageText);
+        console.log(`✅ Validation result:`, validation);
+        
         if (!validation.isValid) {
+            console.log(`❌ Validation failed:`, validation.error);
             await sendWhatsappMessage(phoneNumber, `❌ ${validation.error}\n\nPlease provide ${nextField.field_label}:`);
             return;
         }
 
         // Save field value
+        console.log(`💾 Saving field value: ${nextField.field_name} = ${messageText}`);
         currentFormData[nextField.field_name] = messageText;
         await updateConversationState(phoneNumber, 'CLOSE', currentState.ticketType, currentFormData, null, 'form_filling');
 
@@ -375,14 +408,19 @@ async function handleFormFilling(phoneNumber, messageText, currentState) {
             }
         }
 
+        console.log(`🎯 Next field after current:`, nextNextField);
+
         if (nextNextField) {
+            console.log(`📝 Asking for next field: ${nextNextField.field_label}`);
             await sendWhatsappMessage(phoneNumber, `✅ ${nextField.field_label} saved!\n\nPlease provide ${nextNextField.field_label}:`);
         } else {
             // All fields filled, create ticket
+            console.log(`✅ All fields filled, creating ticket...`);
             const ticketResult = await createTicketFromFormData(phoneNumber, currentState.ticketType, currentFormData);
+            console.log(`🎫 Ticket creation result:`, ticketResult);
             
             if (ticketResult.success) {
-                await sendWhatsappMessage(phoneNumber, `Ticket has been created. Ticket name is ${ticketResult.ticket.ticket_number}`);
+                await sendWhatsappMessage(phoneNumber, `🎉 Ticket has been created successfully! Ticket number: ${ticketResult.ticket.ticket_number}`);
                 
                 // Show open tickets and create new option
                 const openTicketsResult = await getOpenTickets(phoneNumber);
@@ -408,6 +446,7 @@ async function handleFormFilling(phoneNumber, messageText, currentState) {
                     await updateConversationState(phoneNumber, 'CLOSE', null, {}, null, null);
                 }
             } else {
+                console.error('❌ Failed to create ticket:', ticketResult.error);
                 await sendWhatsappMessage(phoneNumber, 'Failed to create ticket. Please try again.');
             }
         }
@@ -521,7 +560,31 @@ router.post('/', async (req, res) => {
         for (const message of messages) {
             console.log(`Processing message from ${message.from}: ${message.text}`);
 
-            const phoneNumber = whatsappService.formatPhoneNumber(message.from);
+            // Format phone number with better error handling
+            let phoneNumber = whatsappService.formatPhoneNumber(message.from);
+            
+            // If formatPhoneNumber returns null, try to format manually
+            if (!phoneNumber) {
+                console.log('⚠️ formatPhoneNumber returned null, trying manual formatting');
+                if (message.from) {
+                    // Remove all non-digit characters
+                    phoneNumber = message.from.toString().replace(/\D/g, '');
+                    
+                    // Add country code if not present (assuming India +91)
+                    if (phoneNumber.length === 10) {
+                        phoneNumber = '91' + phoneNumber;
+                    }
+                    
+                    console.log('📱 Manually formatted phone number:', phoneNumber);
+                }
+            }
+            
+            // Final validation
+            if (!phoneNumber) {
+                console.error('❌ Could not format phone number from:', message.from);
+                continue;
+            }
+
             const messageText = message.text || '';
 
             // Get current conversation state
