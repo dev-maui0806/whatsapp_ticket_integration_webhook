@@ -207,6 +207,7 @@ async function getFormFields(ticketType) {
 async function createTicketFromFormData(phoneNumber, ticketType, formData) {
     try {
         // Find or create customer
+        console.log("**********@@@@@@@@@createticket@@@@@@@@**********", phoneNumber, ticketType, formData)
         const customerQuery = `
             INSERT INTO customers (phone_number, name, created_at, updated_at)
             VALUES (?, ?, NOW(), NOW())
@@ -227,7 +228,7 @@ async function createTicketFromFormData(phoneNumber, ticketType, formData) {
         }
         
         const customerId = customerResult.data[0].id;
-        
+        console.log("*********customID**********", customerId)
         // Create ticket
         const ticketQuery = `
             INSERT INTO tickets (
@@ -253,8 +254,9 @@ async function createTicketFromFormData(phoneNumber, ticketType, formData) {
         const ticketResult = await executeQuery(ticketQuery, ticketParams);
         
         if (ticketResult.success) {
+            console.log("ticketResult", ticketResult.data)
             const ticketId = ticketResult.data.insertId;
-            
+            console.log("ticketId", ticketId);
             // Generate ticket number
             const ticketNumber = `TCK-${ticketId}`;
             await executeQuery(
@@ -283,6 +285,7 @@ async function createTicketFromFormData(phoneNumber, ticketType, formData) {
 // Helper: Start form filling process
 async function startFormFilling(phoneNumber, ticketType) {
     try {
+        console.log("startFormFilling", phoneNumber, ticketType)
         const fieldsResult = await getFormFields(ticketType);
         if (!fieldsResult.success || !fieldsResult.data.length) {
             await sendWhatsappMessage(phoneNumber, 'No form fields found for this ticket type.');
@@ -321,8 +324,9 @@ async function handleFormFilling(phoneNumber, messageText, currentState) {
 
         if (!nextField) {
             // All fields filled, create ticket
+           
             const ticketResult = await createTicketFromFormData(phoneNumber, currentState.ticketType, currentFormData);
-            
+            console.log("onecreateTicketFromFormData", ticketResult)
             if (ticketResult.success) {
                 await sendWhatsappMessage(phoneNumber, `Ticket has been created. Ticket name is ${ticketResult.ticket.ticket_number}`);
                 
@@ -380,7 +384,7 @@ async function handleFormFilling(phoneNumber, messageText, currentState) {
         } else {
             // All fields filled, create ticket
             const ticketResult = await createTicketFromFormData(phoneNumber, currentState.ticketType, currentFormData);
-            
+            console.log("twocreateTicketFromFormData", ticketResult)
             if (ticketResult.success) {
                 await sendWhatsappMessage(phoneNumber, `Ticket has been created. Ticket name is ${ticketResult.ticket.ticket_number}`);
                 
@@ -668,7 +672,7 @@ router.post('/', async (req, res) => {
                     ];
                     
                     const selectedButton = parseTextResponse(messageText, buttons);
-                    
+                    console
                     if (selectedButton && selectedButton.id === 'create_new_ticket') {
                         // Show ticket type selection
                         const typeButtons = [
@@ -717,7 +721,7 @@ router.post('/', async (req, res) => {
                 ];
                 
                 const selectedButton = parseTextResponse(messageText, buttons);
-                
+                console.log("********ticket_type_selection********", selectedButton)
                 if (selectedButton) {
                     let ticketType = null;
                     if (selectedButton.id === 'type_lock_open') {
