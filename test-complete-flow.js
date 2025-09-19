@@ -131,7 +131,7 @@ async function testCompleteFlow() {
             messagesResult.data.forEach((msg, index) => {
                 console.log(`  ${index + 1}. [${msg.sender_type}] ${msg.message_text.substring(0, 50)}...`);
             });
-        } else {
+            } else {
             console.log('❌ Failed to retrieve database messages:', messagesResult.error);
         }
         

@@ -157,8 +157,18 @@ router.post('/', async (req, res) => {
             
             console.log(`✅ Formatted phone number: ${phoneNumber}`);
            
-            // Save the incoming message to database
-            await botConversationService.saveMessage(phoneNumber, messageText, 'customer');
+            // Save the incoming message to database and broadcast to dashboard immediately
+            const savedIncoming = await botConversationService.saveMessage(phoneNumber, messageText, 'customer');
+            try {
+                if (savedIncoming && savedIncoming.success && savedIncoming.data) {
+                    broadcastToDashboard(req, phoneNumber, savedIncoming.data.message_text, 'customer');
+                } else {
+                    // Fallback broadcast without DB payload
+                    broadcastToDashboard(req, phoneNumber, messageText, 'customer');
+                }
+            } catch (e) {
+                console.error('Socket broadcast (incoming customer message) error:', e);
+            }
             
             // Get current conversation state
             const stateResult = await botConversationService.getConversationState(phoneNumber);

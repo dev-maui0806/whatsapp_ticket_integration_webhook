@@ -60,6 +60,7 @@ router.get('/phone/:phoneNumber', async (req, res) => {
 // Get customer messages
 router.get('/:phoneNumber/messages', async (req, res) => {
     try {
+        console.log(req.params)
         const { phoneNumber } = req.params;
         const { limit = 50, offset = 0 } = req.query;
         
