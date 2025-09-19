@@ -198,6 +198,7 @@ router.post('/', async (req, res) => {
             // Handle ticket selection state
             if (currentState.automationChatState === 'ticket_selection') {
                 const openTicketsResult = await botConversationService.getOpenTickets(phoneNumber);
+                console.log("***********openresultticket", openTicketsResult)
                 if (openTicketsResult.success) {
                     const selectionResult = await botConversationService.handleTicketSelection(
                         phoneNumber, 
@@ -206,7 +207,7 @@ router.post('/', async (req, res) => {
                     );
                     
                     if (selectionResult.success) {
-                        await sendWhatsappMessage(phoneNumber, selectionResult.message);
+                        // await sendWhatsappMessage(phoneNumber, selectionResult.message);
                         broadcastToDashboard(req, phoneNumber, selectionResult.message, 'system');
                     } else {
                         await sendWhatsappMessage(phoneNumber, selectionResult.error);

@@ -399,6 +399,7 @@ class BotConversationService {
                 return {
                     success: true,
                     action: 'create_new_ticket',
+                    message: `${header}/n${body}/n${footer}/n${buttonText}/n${sections}`,
                     interactiveSent: true
                 };
             } else if (selection > 1 && selection <= openTickets.length + 1) {
