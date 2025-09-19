@@ -1,122 +1,165 @@
-const axios = require('axios');
-
-// Set actual WhatsApp API credentials
-process.env.WHATSAPP_API_URL = 'https://graph.facebook.com/v17.0';
-process.env.WHATSAPP_ACCESS_TOKEN = 'EAATpMvZAJA5oBPEhSNwN7MwG76VVPxTykrClLQnHbpzys4yD2okEHArzhUhdcBrotjm8wZArw5YIk9An6hjUvlCfTXA0ZADh2vIZBASRg9hJiAZAR5ZCRGISmeGKNLjkQ9nM6kDYx1X6k5r8yghPipOIiUKRkCa3gTZAnDxN3atm4h56JSlNCCZBxSeHgZCz6';
-process.env.WHATSAPP_PHONE_NUMBER_ID = '639323635919894';
-process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN = '1234';
-process.env.WHATSAPP_BUSINESS_ID = '1810065506501128';
-process.env.WHATSAPP_CLIENT_ID = '1382304996459418';
-process.env.WHATSAPP_CLIENT_SECRET = 'b00075532e43173f82c8611602194760';
-process.env.NODE_ENV = 'production';
+const BotConversationService = require('./services/botConversationService');
+const WhatsAppService = require('./services/whatsappService');
+const { executeQuery } = require('./config/database');
 
 async function testCompleteFlow() {
-    console.log('🧪 Testing Complete WhatsApp Integration Flow');
-    console.log('==============================================');
+    console.log('🧪 Testing Complete Bot Flow...');
+    console.log('=====================================');
     
-    const SERVER_URL = 'http://localhost:4000';
-    
-    // Test payload with complete ticket details
-    const testPayload = {
-        "object": "whatsapp_business_account",
-        "entry": [
-            {
-                "id": "123456789",
-                "changes": [
-                    {
-                        "value": {
-                            "messaging_product": "whatsapp",
-                            "metadata": {
-                                "display_phone_number": "+48794740269",
-                                "phone_number_id": "639323635919894"
-                            },
-                            "messages": [
-                                {
-                                    "id": "wamid.test123456789",
-                                    "from": "48794740269",
-                                    "timestamp": "1640995400",
-                                    "text": {
-                                        "body": "Vehicle: ABC123, Driver: XYZ789, Location: Warsaw, Date: 2024-01-15, Time: 14:00, Comment: Need lock repair"
-                                    },
-                                    "type": "text"
-                                }
-                            ]
-                        },
-                        "field": "messages"
-                    }
-                ]
-            }
-        ]
-    };
-    
-    console.log('\n1. Sending webhook with complete ticket details...');
-    console.log('   Message: "Vehicle: ABC123, Driver: XYZ789, Location: Warsaw, Date: 2024-01-15, Time: 14:00, Comment: Need lock repair"');
+    const botService = new BotConversationService();
+    const whatsappService = new WhatsAppService();
+    const testPhoneNumber = '918826000390';
     
     try {
-        const response = await axios.post(
-            `${SERVER_URL}/webhook`,
-            testPayload,
-            {
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                timeout: 15000
-            }
-        );
-
-        console.log('   ✅ Webhook processed successfully!');
-        console.log(`   Status: ${response.status}`);
+        // Test 1: Initial greeting
+        console.log('\n📱 Test 1: Initial Greeting');
+        console.log('----------------------------');
         
-        // Check tickets
-        console.log('\n2. Checking created/updated tickets...');
-        const ticketsResponse = await axios.get(`${SERVER_URL}/api/tickets`);
-        const tickets = ticketsResponse.data.data || [];
+        const greetingResult = await botService.handleInitialGreeting(testPhoneNumber, 'HELLO', 'Test Customer');
+        console.log('✅ Greeting Result:', greetingResult);
         
-        console.log(`   Found ${tickets.length} total tickets`);
-        
-        // Find ticket for our test customer
-        const testTicket = tickets.find(t => t.phone_number === '48794740269');
-        
-        if (testTicket) {
-            console.log('   ✅ Found ticket for test customer!');
-            console.log('   Ticket Details:');
-            console.log(`   - ID: ${testTicket.id}`);
-            console.log(`   - Ticket Number: ${testTicket.ticket_number}`);
-            console.log(`   - Status: ${testTicket.status}`);
-            console.log(`   - Issue Type: ${testTicket.issue_type}`);
-            console.log(`   - Vehicle: ${testTicket.vehicle_number || 'Not set'}`);
-            console.log(`   - Driver: ${testTicket.driver_number || 'Not set'}`);
-            console.log(`   - Location: ${testTicket.location || 'Not set'}`);
-            console.log(`   - Date: ${testTicket.availability_date || 'Not set'}`);
-            console.log(`   - Time: ${testTicket.availability_time || 'Not set'}`);
-            console.log(`   - Comment: ${testTicket.comment || 'Not set'}`);
-            
-            // Verify parsing worked
-            const parsingWorked = testTicket.vehicle_number === 'ABC123' && 
-                                testTicket.driver_number === 'XYZ789' && 
-                                testTicket.location === 'Warsaw';
-            
-            if (parsingWorked) {
-                console.log('\n   🎉 SUCCESS: Ticket details were parsed and stored correctly!');
+        if (greetingResult.success) {
+            console.log('✅ Initial greeting handled successfully');
+            if (greetingResult.message) {
+                console.log('📝 Bot Message:', greetingResult.message);
             } else {
-                console.log('\n   ⚠️  WARNING: Ticket details were not parsed correctly');
+                console.log('📝 No message sent (customer already received greeting)');
             }
         } else {
-            console.log('   ❌ No ticket found for test customer');
+            console.log('❌ Initial greeting failed:', greetingResult.error);
         }
         
-    } catch (error) {
-        console.log('   ❌ Test failed:', error.message);
-        if (error.response) {
-            console.log('   Response:', JSON.stringify(error.response.data, null, 2));
+        // Test 2: /start command
+        console.log('\n🚀 Test 2: /start Command');
+        console.log('-------------------------');
+        
+        const startResult = await botService.handleStartCommand(testPhoneNumber);
+        console.log('✅ Start Result:', startResult);
+        
+        if (startResult.success) {
+            console.log('✅ /start command handled successfully');
+            console.log('📝 Bot Message:', startResult.message);
+            console.log('📊 Has Existing Tickets:', startResult.hasExistingTickets);
+        } else {
+            console.log('❌ /start command failed:', startResult.error);
         }
+        
+        // Test 3: Select "Create New Ticket" (option 1)
+        console.log('\n🎫 Test 3: Select "Create New Ticket"');
+        console.log('-------------------------------------');
+        
+        const newTicketResult = await botService.handleNewTicketSelection(testPhoneNumber, '1');
+        console.log('✅ New Ticket Result:', newTicketResult);
+        
+        if (newTicketResult.success) {
+            console.log('✅ New ticket selection handled successfully');
+            console.log('📝 Bot Message:', newTicketResult.message);
+            console.log('🎯 Action:', newTicketResult.action);
+        } else {
+            console.log('❌ New ticket selection failed:', newTicketResult.error);
+        }
+        
+        // Test 4: Select ticket type (option 1 - Unlock)
+        console.log('\n🔧 Test 4: Select Ticket Type (Unlock)');
+        console.log('---------------------------------------');
+        
+        const ticketTypeResult = await botService.handleTicketTypeSelection(testPhoneNumber, '1');
+        console.log('✅ Ticket Type Result:', ticketTypeResult);
+        
+        if (ticketTypeResult.success) {
+            console.log('✅ Ticket type selection handled successfully');
+            console.log('📝 Bot Message:', ticketTypeResult.message);
+            console.log('🎫 Ticket Type:', ticketTypeResult.ticketType);
+        } else {
+            console.log('❌ Ticket type selection failed:', ticketTypeResult.error);
+        }
+        
+        // Test 5: Form filling
+        console.log('\n📝 Test 5: Form Filling');
+        console.log('----------------------');
+        
+        const formData = {
+            vehicle_number: 'HR55J2345',
+            driver_number: '9876543210',
+            location: 'Delhi',
+            comment: 'Lock is stuck'
+        };
+        
+        const formInput = `${formData.vehicle_number}, ${formData.driver_number}, ${formData.location}, ${formData.comment}`;
+        
+        const formResult = await botService.handleFormFilling(testPhoneNumber, formInput, 'lock_open', {});
+        console.log('✅ Form Result:', formResult);
+        
+        if (formResult.success) {
+            console.log('✅ Form filling handled successfully');
+            console.log('📝 Bot Message:', formResult.message);
+            console.log('🎯 Action:', formResult.action);
+            console.log('📊 Form Data:', formResult.formData);
+        } else {
+            console.log('❌ Form filling failed:', formResult.error);
+        }
+        
+        // Test 6: Complete ticket creation
+        console.log('\n✅ Test 6: Complete Ticket Creation');
+        console.log('----------------------------------');
+        
+        const completeResult = await botService.handleFormFilling(testPhoneNumber, '/input_end', 'lock_open', formData);
+        console.log('✅ Complete Result:', completeResult);
+        
+        if (completeResult.success) {
+            console.log('✅ Ticket creation completed successfully');
+            console.log('📝 Bot Message:', completeResult.message);
+            console.log('🎫 Ticket:', completeResult.ticket);
+        } else {
+            console.log('❌ Ticket creation failed:', completeResult.error);
+        }
+        
+        // Test 7: Check database messages
+        console.log('\n📊 Test 7: Check Database Messages');
+        console.log('----------------------------------');
+        
+        const messagesResult = await executeQuery(`
+            SELECT id, phone_number, sender_type, message_text, created_at 
+            FROM messages 
+            WHERE phone_number = ? 
+            ORDER BY created_at ASC
+        `, [testPhoneNumber]);
+        
+        if (messagesResult.success) {
+            console.log('✅ Database messages retrieved successfully');
+            console.log('📝 Total messages:', messagesResult.data.length);
+            messagesResult.data.forEach((msg, index) => {
+                console.log(`  ${index + 1}. [${msg.sender_type}] ${msg.message_text.substring(0, 50)}...`);
+            });
+        } else {
+            console.log('❌ Failed to retrieve database messages:', messagesResult.error);
+        }
+        
+        // Test 8: Check customer record
+        console.log('\n👤 Test 8: Check Customer Record');
+        console.log('-------------------------------');
+        
+        const customerResult = await executeQuery(`
+            SELECT id, phone_number, name, created_at 
+            FROM customers 
+            WHERE phone_number = ?
+        `, [testPhoneNumber]);
+        
+        if (customerResult.success && customerResult.data.length > 0) {
+            console.log('✅ Customer record found');
+            const customer = customerResult.data[0];
+            console.log('📝 Customer:', customer);
+        } else {
+            console.log('❌ Customer record not found');
+        }
+        
+        console.log('\n🎉 Complete Flow Test Completed Successfully!');
+        console.log('=============================================');
+        
+    } catch (error) {
+        console.error('❌ Test failed:', error);
     }
-    
-    console.log('\n✅ Complete Flow Test Finished');
-    console.log('==============================================');
 }
 
-testCompleteFlow().catch(error => {
-    console.error('❌ Test failed:', error.message);
-    process.exit(1);
-});
+// Run the test
+testCompleteFlow();

@@ -227,6 +227,23 @@ class BotConversationService {
             // Save the incoming message
             await this.saveMessage(phoneNumber, messageText, 'customer');
             
+            // Check if customer already exists
+            const existingCustomer = await Customer.findByPhone(phoneNumber);
+            
+            if (existingCustomer) {
+                // Customer exists, check if they already received the initial greeting
+                const recentMessages = await Message.getByPhoneNumber(phoneNumber, 5, 0);
+                const hasSystemGreeting = recentMessages.success && recentMessages.data.some(msg => 
+                    msg.sender_type === 'system' && 
+                    msg.message_text.includes('Type /start to create a new ticket')
+                );
+                
+                if (hasSystemGreeting) {
+                    // Customer already received greeting, just return success
+                    return { success: true, message: null, customer: existingCustomer };
+                }
+            }
+            
             // Create or find customer
             const customerResult = await Customer.findOrCreate(phoneNumber, customerName || 'Customer');
             if (!customerResult.success) {

@@ -12,6 +12,26 @@ const { executeQuery } = require('../config/database');
 const whatsappService = new WhatsAppService();
 const botConversationService = new BotConversationService();
 
+// Helper: Broadcast message to dashboard
+function broadcastToDashboard(req, phoneNumber, message, senderType = 'system') {
+    try {
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('newCustomerMessage', {
+                phone_number: phoneNumber,
+                message: {
+                    message_text: message,
+                    created_at: new Date().toISOString(),
+                    sender_type: senderType
+                },
+                customer: { phone_number: phoneNumber }
+            });
+        }
+    } catch (e) {
+        console.error('Socket broadcast error:', e);
+    }
+}
+
 // Helper: Send a WhatsApp message programmatically
 async function sendWhatsappMessage(phoneNumber, message) {
     try {
@@ -110,6 +130,32 @@ router.post('/', async (req, res) => {
 
             const phoneNumber = whatsappService.formatPhoneNumber(message.from);
             const messageText = message.text || '';
+            
+            // Validate phone number
+            if (!phoneNumber) {
+                console.error('❌ Invalid phone number:', message.from);
+                results.push({
+                    messageId: message.id,
+                    from: message.from,
+                    success: false,
+                    error: 'Invalid phone number'
+                });
+                continue;
+            }
+            
+            // Skip empty messages
+            if (!messageText.trim()) {
+                console.log('⚠️ Skipping empty message');
+                results.push({
+                    messageId: message.id,
+                    from: message.from,
+                    success: true,
+                    skipped: 'Empty message'
+                });
+                continue;
+            }
+            
+            console.log(`✅ Formatted phone number: ${phoneNumber}`);
            
             // Save the incoming message to database
             await botConversationService.saveMessage(phoneNumber, messageText, 'customer');
@@ -140,6 +186,7 @@ router.post('/', async (req, res) => {
                 const startResult = await botConversationService.handleStartCommand(phoneNumber);
                 if (startResult.success) {
                     await sendWhatsappMessage(phoneNumber, startResult.message);
+                    broadcastToDashboard(req, phoneNumber, startResult.message, 'system');
                 } else {
                     await sendWhatsappMessage(phoneNumber, 'Error processing /start command. Please try again.');
                 }
@@ -160,7 +207,11 @@ router.post('/', async (req, res) => {
                     // This is likely an initial greeting (HELLO, Hi, etc.)
                     const greetingResult = await botConversationService.handleInitialGreeting(phoneNumber, messageText, message.profileName);
                     if (greetingResult.success) {
-                        await sendWhatsappMessage(phoneNumber, greetingResult.message);
+                        if (greetingResult.message) {
+                            await sendWhatsappMessage(phoneNumber, greetingResult.message);
+                            broadcastToDashboard(req, phoneNumber, greetingResult.message, 'system');
+                        }
+                        // If message is null, customer already received greeting, no need to send again
                     } else {
                         await sendWhatsappMessage(phoneNumber, 'Error processing greeting. Please try again.');
                     }
@@ -180,6 +231,7 @@ router.post('/', async (req, res) => {
                     
                     if (selectionResult.success) {
                         await sendWhatsappMessage(phoneNumber, selectionResult.message);
+                        broadcastToDashboard(req, phoneNumber, selectionResult.message, 'system');
                     } else {
                         await sendWhatsappMessage(phoneNumber, selectionResult.error);
                     }
@@ -199,6 +251,7 @@ router.post('/', async (req, res) => {
                 
                 if (chatRequestResult.success) {
                     await sendWhatsappMessage(phoneNumber, chatRequestResult.message);
+                    broadcastToDashboard(req, phoneNumber, chatRequestResult.message, 'system');
                     
                     // If customer wants to chat with agent, notify agents
                     if (chatRequestResult.action === 'start_agent_chat') {
@@ -237,6 +290,7 @@ router.post('/', async (req, res) => {
                 
                 if (typeSelectionResult.success) {
                     await sendWhatsappMessage(phoneNumber, typeSelectionResult.message);
+                    broadcastToDashboard(req, phoneNumber, typeSelectionResult.message, 'system');
                 } else {
                     await sendWhatsappMessage(phoneNumber, typeSelectionResult.error);
                 }
@@ -255,8 +309,10 @@ router.post('/', async (req, res) => {
                 if (formResult.success) {
                     if (formResult.action === 'ticket_created') {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
-                    } else {
-                        // Continue form filling - no response needed
+                        broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
+                    } else if (formResult.message) {
+                        await sendWhatsappMessage(phoneNumber, formResult.message);
+                        broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
                     }
                 } else {
                     await sendWhatsappMessage(phoneNumber, formResult.error);
@@ -273,7 +329,8 @@ router.post('/', async (req, res) => {
                 
                 if (newTicketResult.success) {
                     await sendWhatsappMessage(phoneNumber, newTicketResult.message);
-                } else {
+                    broadcastToDashboard(req, phoneNumber, newTicketResult.message, 'system');
+        } else {
                     await sendWhatsappMessage(phoneNumber, newTicketResult.error);
                 }
                 continue;
@@ -283,6 +340,9 @@ router.post('/', async (req, res) => {
             if (currentState.currentStep === 'OPEN' && currentState.currentTicketId) {
                 // Save message to ticket
                 await botConversationService.saveMessage(phoneNumber, messageText, 'customer', currentState.currentTicketId);
+                
+                // Broadcast to dashboard
+                broadcastToDashboard(req, phoneNumber, messageText, 'customer');
                 
                 // Notify agents
                 try {
@@ -308,7 +368,9 @@ router.post('/', async (req, res) => {
             }
 
             // Default response for unrecognized messages
-            await sendWhatsappMessage(phoneNumber, 'I didn\'t understand that. Please try again or type /start to begin.');
+            const defaultMessage = 'I didn\'t understand that. Please try again or type /start to begin.';
+            await sendWhatsappMessage(phoneNumber, defaultMessage);
+            broadcastToDashboard(req, phoneNumber, defaultMessage, 'system');
 
                 results.push({
                 messageId: message.id,
@@ -333,9 +395,9 @@ router.post('/', async (req, res) => {
         const logQuery = 'INSERT INTO webhook_logs (webhook_data, processed, error_message) VALUES (?, ?, ?)';
         await executeQuery(logQuery, [JSON.stringify(req.body), false, error.message]);
 
-        res.status(500).json({ 
+        res.status(500).json({
             status: 'error', 
-            error: error.message 
+            error: error.message
         });
     }
 });
