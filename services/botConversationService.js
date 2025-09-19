@@ -34,50 +34,6 @@ class BotConversationService {
         }
     }
 
-    async sendTicketTypeList(phoneNumber) {
-        try {
-            const header = 'Create New Ticket';
-            const body = 'Select the type of ticket you want to create:';
-            const footer = 'Please reply with a number (1-5) or the option name.';
-            // Persist a readable message to dashboard first
-            const dashText = `${header}\n\n${body}`;
-            await this.saveMessage(phoneNumber, dashText, 'system');
-
-            // Build list sections (single section with five rows)
-            const sections = [
-                {
-                    title: 'Ticket Types',
-                    rows: this.ticketTypes.map((t, idx) => ({
-                        id: `ticket_type_${t.id}`,
-                        title: `${idx + 1}) ${t.label}`,
-                        description: t.name
-                    }))
-                }
-            ];
-
-            // WhatsAppService send list
-            if (whatsappService.sendListMessage) {
-                await whatsappService.sendListMessage(
-                    whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
-                    header,
-                    body,
-                    footer,
-                    'Select',
-                    sections
-                );
-            } else {
-                // Fallback to buttons (first three) if list API not available
-                const buttons = this.ticketTypes.slice(0, 3).map(t => ({ id: `ticket_type_${t.id}`, title: t.label }));
-                await this.sendButtons(phoneNumber, header, body, footer, buttons);
-            }
-
-            return { success: true };
-        } catch (e) {
-            console.error('sendTicketTypeList failed:', e);
-            return { success: false, error: e.message };
-        }
-    }
-
     // Get conversation state
     async getConversationState(phoneNumber) {
         try {
@@ -402,7 +358,10 @@ class BotConversationService {
             
             if (selection === 1) {
                 // Create new ticket
-                await this.sendTicketTypeList(phoneNumber);
+                const header = 'Create New Ticket';
+                const body = 'Select the type of ticket you want to create:';
+                const buttons = this.ticketTypes.slice(0, 3).map(t => ({ id: `ticket_type_${t.id}`, title: t.label }));
+                await this.sendButtons(phoneNumber, header, body, 'Please reply with a number (1-5) or the option name.', buttons);
                 await this.updateConversationState(phoneNumber, 'ticket_type_selection', null, {}, null, 'ticket_type_selection');
                 
                 return {
