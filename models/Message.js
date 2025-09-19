@@ -4,6 +4,7 @@ class Message {
     constructor(data) {
         this.id = data.id;
         this.ticket_id = data.ticket_id;
+        this.phone_number = data.phone_number;
         this.sender_type = data.sender_type;
         this.sender_id = data.sender_id;
         this.message_text = data.message_text;
@@ -18,13 +19,14 @@ class Message {
     static async create(messageData) {
         const query = `
             INSERT INTO messages (
-                ticket_id, sender_type, sender_id, message_text,
+                ticket_id, phone_number, sender_type, sender_id, message_text,
                 message_type, media_url, is_from_whatsapp, whatsapp_message_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
         const params = [
-            messageData.ticket_id,
+            messageData.ticket_id || null,
+            messageData.phone_number || null,
             messageData.sender_type,
             messageData.sender_id || null,
             messageData.message_text,
@@ -112,6 +114,62 @@ class Message {
         
         const result = await executeQuery(query);
         return result;
+    }
+
+    // Get messages by phone number
+    static async getByPhoneNumber(phoneNumber, limit = 50, offset = 0) {
+        const query = `
+            SELECT m.*, u.name as sender_name, t.ticket_number
+            FROM messages m
+            LEFT JOIN users u ON m.sender_id = u.id
+            LEFT JOIN tickets t ON m.ticket_id = t.id
+            WHERE m.phone_number = ?
+            ORDER BY m.created_at ASC
+            LIMIT ? OFFSET ?
+        `;
+        
+        const result = await executeQuery(query, [phoneNumber, limit, offset]);
+        return result;
+    }
+
+    // Get latest message by phone number
+    static async getLatestByPhoneNumber(phoneNumber) {
+        const query = `
+            SELECT m.*, u.name as sender_name, t.ticket_number
+            FROM messages m
+            LEFT JOIN users u ON m.sender_id = u.id
+            LEFT JOIN tickets t ON m.ticket_id = t.id
+            WHERE m.phone_number = ?
+            ORDER BY m.created_at DESC
+            LIMIT 1
+        `;
+        
+        const result = await executeQuery(query, [phoneNumber]);
+        
+        if (result.success && result.data.length > 0) {
+            return new Message(result.data[0]);
+        }
+        
+        return null;
+    }
+
+    // Get unread messages count for phone number
+    static async getUnreadCountByPhoneNumber(phoneNumber) {
+        const query = `
+            SELECT COUNT(*) as count
+            FROM messages m
+            WHERE m.phone_number = ? 
+            AND m.sender_type = 'customer'
+            AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        `;
+        
+        const result = await executeQuery(query, [phoneNumber]);
+        
+        if (result.success && result.data.length > 0) {
+            return result.data[0].count;
+        }
+        
+        return 0;
     }
 
     // Mark message as processed

@@ -133,6 +133,72 @@ class Customer {
         
         return 0;
     }
+
+    // Get pending chats count (unread messages from customer)
+    async getPendingChatsCount() {
+        const query = `
+            SELECT COUNT(*) as count
+            FROM messages m
+            WHERE m.phone_number = ? 
+            AND m.sender_type = 'customer'
+            AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        `;
+        
+        const result = await executeQuery(query, [this.phone_number]);
+        
+        if (result.success && result.data.length > 0) {
+            return result.data[0].count;
+        }
+        
+        return 0;
+    }
+
+    // Get all customers with their statistics
+    static async getAllWithStats() {
+        const query = `
+            SELECT 
+                c.id,
+                c.phone_number,
+                c.name,
+                c.created_at,
+                COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer') THEN t.id END) as open_tickets,
+                COUNT(DISTINCT CASE WHEN m.sender_type = 'customer' AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN m.id END) as pending_chats
+            FROM customers c
+            LEFT JOIN tickets t ON c.id = t.customer_id
+            LEFT JOIN messages m ON c.phone_number = m.phone_number
+            GROUP BY c.id, c.phone_number, c.name, c.created_at
+            ORDER BY c.created_at DESC
+        `;
+        
+        const result = await executeQuery(query);
+        return result;
+    }
+
+    // Get customer by phone number with stats
+    static async findByPhoneWithStats(phoneNumber) {
+        const query = `
+            SELECT 
+                c.id,
+                c.phone_number,
+                c.name,
+                c.created_at,
+                COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer') THEN t.id END) as open_tickets,
+                COUNT(DISTINCT CASE WHEN m.sender_type = 'customer' AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN m.id END) as pending_chats
+            FROM customers c
+            LEFT JOIN tickets t ON c.id = t.customer_id
+            LEFT JOIN messages m ON c.phone_number = m.phone_number
+            WHERE c.phone_number = ?
+            GROUP BY c.id, c.phone_number, c.name, c.created_at
+        `;
+        
+        const result = await executeQuery(query, [phoneNumber]);
+        
+        if (result.success && result.data.length > 0) {
+            return result.data[0];
+        }
+        
+        return null;
+    }
 }
 
 module.exports = Customer;

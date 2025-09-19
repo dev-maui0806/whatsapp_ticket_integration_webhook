@@ -35,6 +35,7 @@ app.use('/webhook', webhookRoutes);
 app.use('/enhanced-webhook', require('./routes/enhancedWebhook'));
 app.use('/socket-webhook', require('./routes/socketWebhook'));
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/customers', require('./routes/customers'));
 
 // Serve React app for all non-API routes (only if build exists)
 app.get('*', (req, res) => {
