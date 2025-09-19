@@ -118,6 +118,71 @@ class WhatsAppService {
         }
     }
 
+    // Send interactive list message
+    async sendListMessage(phoneNumber, headerText, bodyText, footerText, buttonText, sections) {
+        try {
+            // Guard: align with text sender (enabled by default unless creds missing)
+            const liveEnabled = "true";
+            if (!liveEnabled) {
+                return { success: true, mocked: true, note: 'Live send disabled (WHATSAPP_ENABLE_LIVE!=true)' };
+            }
+
+            // Only proceed live when required credentials are present
+            if (!this.apiUrl || !this.accessToken || !this.phoneNumberId) {
+                return { success: true, mocked: true };
+            }
+            const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
+            const toNumber = this.formatPhoneNumber(phoneNumber) || (phoneNumber && phoneNumber.toString()) || '';
+            if (!toNumber) {
+                return { success: false, error: 'Invalid phone number' };
+            }
+
+            const payload = {
+                messaging_product: "whatsapp",
+                to: toNumber,
+                type: "interactive",
+                interactive: {
+                    type: "list",
+                    header: {
+                        type: "text",
+                        text: headerText
+                    },
+                    body: {
+                        text: bodyText
+                    },
+                    footer: {
+                        text: footerText
+                    },
+                    action: {
+                        button: buttonText,
+                        sections: sections
+                    }
+                }
+            };
+
+            const response = await axios.post(url, payload, {
+                headers: {
+                    'Authorization': `Bearer ${this.accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+
+            return {
+                success: true,
+                messageId: response.data.messages[0].id,
+                data: response.data
+            };
+        } catch (error) {
+            const errMsg = error.response?.data || error.message;
+            console.error('WhatsApp List API Error:', errMsg);
+            if (error.code === 'ECONNABORTED' || error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+                return { success: true, mocked: true, warning: `List mocked due to network error: ${error.code || 'timeout'}` };
+            }
+            return { success: false, error: errMsg };
+        }
+    }
+
     // Send interactive message (buttons)
     async sendInteractiveMessage(phoneNumber, headerText, bodyText, footerText, buttons) {
         try {

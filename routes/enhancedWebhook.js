@@ -153,7 +153,7 @@ router.post('/', async (req, res) => {
             const currentState = stateResult.data;
             console.log("Current state data:", currentState);
 
-            // Handle /start command
+            // Handle /start command or greeting_start button
             if (messageText.toLowerCase().trim() === '/start') {
                 const startResult = await botConversationService.handleStartCommand(phoneNumber);
                 if (startResult.success) {

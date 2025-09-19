@@ -357,11 +357,43 @@ class BotConversationService {
             }
             
             if (selection === 1) {
-                // Create new ticket
+                // Create new ticket - use list to show all 5 ticket types
                 const header = 'Create New Ticket';
                 const body = 'Select the type of ticket you want to create:';
-                const buttons = this.ticketTypes.slice(0, 3).map(t => ({ id: `ticket_type_${t.id}`, title: t.label }));
-                await this.sendButtons(phoneNumber, header, body, 'Please reply with a number (1-5) or the option name.', buttons);
+                const footer = 'Choose from the list below:';
+                const buttonText = 'Select Ticket Type';
+                
+                // Build list sections (single section with all ticket types)
+                const sections = [
+                    {
+                        title: 'Ticket Types',
+                        rows: this.ticketTypes.map((t, idx) => ({
+                            id: `ticket_type_${t.id}`,
+                            title: `${idx + 1}) ${t.label}`,
+                            description: t.name
+                        }))
+                    }
+                ];
+                
+                // Save system message for dashboard
+                const systemMessage = `${header}\n\n${body}\n${this.ticketTypes.map((t, idx) => `${idx + 1}) ${t.label}`).join('\n')}\n${footer}`;
+                await this.saveMessage(phoneNumber, systemMessage, 'system');
+                
+                // Send interactive list via WhatsApp
+                const whatsappResult = await whatsappService.sendListMessage(
+                    whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
+                    header,
+                    body,
+                    footer,
+                    buttonText,
+                    sections
+                );
+                
+                if (!whatsappResult.success) {
+                    console.error('Failed to send interactive list via WhatsApp:', whatsappResult.error);
+                    return { success: false, error: whatsappResult.error };
+                }
+                
                 await this.updateConversationState(phoneNumber, 'ticket_type_selection', null, {}, null, 'ticket_type_selection');
                 
                 return {
