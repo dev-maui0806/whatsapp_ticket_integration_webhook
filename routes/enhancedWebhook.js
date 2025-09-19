@@ -91,6 +91,7 @@ router.post('/', async (req, res) => {
 
             const phoneNumber = whatsappService.formatPhoneNumber(message.from);
             const messageText = message.text || '';
+            const interactiveId = message.interactive?.id || null;
             
             // Validate phone number
             if (!phoneNumber) {
@@ -156,8 +157,11 @@ router.post('/', async (req, res) => {
             if (messageText.toLowerCase().trim() === '/start') {
                 const startResult = await botConversationService.handleStartCommand(phoneNumber);
                 if (startResult.success) {
-                    await sendWhatsappMessage(phoneNumber, startResult.message);
-                    broadcastToDashboard(req, phoneNumber, startResult.message, 'system');
+                    // For interactive menus, startResult.message may be empty because buttons were sent.
+                    if (startResult.message) {
+                        await sendWhatsappMessage(phoneNumber, startResult.message);
+                        broadcastToDashboard(req, phoneNumber, startResult.message, 'system');
+                    }
                 } else {
                     await sendWhatsappMessage(phoneNumber, 'Error processing /start command. Please try again.');
                 }
@@ -197,7 +201,7 @@ router.post('/', async (req, res) => {
                 if (openTicketsResult.success) {
                     const selectionResult = await botConversationService.handleTicketSelection(
                         phoneNumber, 
-                        messageText, 
+                        interactiveId ? `id:${interactiveId}` : messageText, 
                         openTicketsResult.data || []
                     );
                     
@@ -217,7 +221,7 @@ router.post('/', async (req, res) => {
             if (currentState.automationChatState === 'agent_chat_request') {
                 const chatRequestResult = await botConversationService.handleAgentChatRequest(
                     phoneNumber, 
-                    messageText, 
+                    interactiveId ? `id:${interactiveId}` : messageText, 
                     currentState.currentTicketId
                 );
                 
@@ -257,7 +261,7 @@ router.post('/', async (req, res) => {
             if (currentState.automationChatState === 'ticket_type_selection') {
                 const typeSelectionResult = await botConversationService.handleTicketTypeSelection(
                     phoneNumber, 
-                    messageText
+                    interactiveId ? `id:${interactiveId}` : messageText
                 );
                 
                 if (typeSelectionResult.success) {
@@ -275,7 +279,8 @@ router.post('/', async (req, res) => {
                     phoneNumber, 
                     messageText, 
                     currentState.ticketType, 
-                    currentState.formData
+                    currentState.formData,
+                    interactiveId
                 );
                 
                 if (formResult.success) {

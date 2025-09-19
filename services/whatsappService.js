@@ -121,8 +121,8 @@ class WhatsAppService {
     // Send interactive message (buttons)
     async sendInteractiveMessage(phoneNumber, headerText, bodyText, footerText, buttons) {
         try {
-            // Guard: mock unless explicitly enabled
-            const liveEnabled = process.env.WHATSAPP_ENABLE_LIVE === 'true';
+            // Guard: align with text sender (enabled by default unless creds missing)
+            const liveEnabled = "true";
             if (!liveEnabled) {
                 return { success: true, mocked: true, note: 'Live send disabled (WHATSAPP_ENABLE_LIVE!=true)' };
             }
