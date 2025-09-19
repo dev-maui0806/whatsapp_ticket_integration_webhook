@@ -26,13 +26,37 @@ class BotConversationService {
             
             if (result.success && result.data.length > 0) {
                 const state = result.data[0];
+                
+                // Handle form_data safely - it could be JSON type or string
+                let formData = {};
+                if (state.form_data) {
+                    try {
+                        // If it's already an object (JSON type), use it directly
+                        if (typeof state.form_data === 'object') {
+                            formData = state.form_data;
+                        } else if (typeof state.form_data === 'string') {
+                            // If it's a string, try to parse it
+                            if (state.form_data === '[object Object]') {
+                                // Handle the problematic case where object was stored as string
+                                console.warn(`Found problematic form_data '[object Object]' for phone number ${phoneNumber}. Treating as empty object.`);
+                                formData = {};
+                            } else {
+                                formData = JSON.parse(state.form_data);
+                            }
+                        }
+                    } catch (parseError) {
+                        console.warn(`Failed to parse form_data for phone number ${phoneNumber}:`, parseError.message);
+                        formData = {};
+                    }
+                }
+                
                 return {
                     success: true,
                     data: {
                         phoneNumber: state.phone_number,
                         currentStep: state.current_step,
                         ticketType: state.ticket_type,
-                        formData: state.form_data ? JSON.parse(state.form_data) : {},
+                        formData: formData,
                         currentTicketId: state.current_ticket_id,
                         automationChatState: state.automation_chat_state,
                         createdAt: state.created_at,
@@ -51,6 +75,9 @@ class BotConversationService {
     // Update conversation state
     async updateConversationState(phoneNumber, currentStep, ticketType = null, formData = {}, currentTicketId = null, automationChatState = null) {
         try {
+            // Ensure formData is always an object before stringifying
+            const safeFormData = typeof formData === 'object' && formData !== null ? formData : {};
+            
             const query = `
                 INSERT INTO bot_conversation_states (
                     phone_number, current_step, ticket_type, form_data, current_ticket_id, automation_chat_state
@@ -68,7 +95,7 @@ class BotConversationService {
                 phoneNumber,
                 currentStep,
                 ticketType,
-                JSON.stringify(formData),
+                JSON.stringify(safeFormData),
                 currentTicketId,
                 automationChatState
             ];

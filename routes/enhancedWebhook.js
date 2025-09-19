@@ -120,6 +120,15 @@ router.post('/', async (req, res) => {
             
             if (!stateResult.success) {
                 console.error('Failed to get conversation state:', stateResult.error);
+                // Continue processing with null state instead of skipping
+                const currentState = null;
+                // Handle message without state (treat as new customer)
+                const startResult = await botConversationService.handleStartCommand(phoneNumber);
+                if (startResult.success) {
+                    await sendWhatsappMessage(phoneNumber, startResult.message);
+                } else {
+                    await sendWhatsappMessage(phoneNumber, 'Error processing request. Please try again.');
+                }
                 continue;
             }
 
