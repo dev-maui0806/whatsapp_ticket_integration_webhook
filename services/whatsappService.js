@@ -254,20 +254,35 @@ class WhatsAppService {
             console.log("$$$$$$$$$$$", changes, value)
             if (value.messages) {
                 return value.messages
-                    .map(message => ({
-                        id: message.id,
-                        from: message.from,
-                        timestamp: message.timestamp,
-                        type: message.type,
-                        text: message.text?.body || '',
-                        image: message.image,
-                        document: message.document,
-                        audio: message.audio,
-                        video: message.video,
-                        location: message.location,
-                        contacts: message.contacts,
-                        context: message.context
-                    }))
+                    .map(message => {
+                        const base = {
+                            id: message.id,
+                            from: message.from,
+                            timestamp: message.timestamp,
+                            type: message.type,
+                            image: message.image,
+                            document: message.document,
+                            audio: message.audio,
+                            video: message.video,
+                            location: message.location,
+                            contacts: message.contacts,
+                            context: message.context
+                        };
+                        if (message.type === 'interactive') {
+                            const btn = message.interactive?.button_reply;
+                            const list = message.interactive?.list_reply;
+                            return {
+                                ...base,
+                                text: (btn?.title || list?.title || '').trim(),
+                                interactive: {
+                                    id: btn?.id || list?.id,
+                                    title: btn?.title || list?.title,
+                                    source: btn ? 'button' : 'list'
+                                }
+                            };
+                        }
+                        return { ...base, text: message.text?.body || '' };
+                    })
                     .filter(m => !!m.from);
             }
 

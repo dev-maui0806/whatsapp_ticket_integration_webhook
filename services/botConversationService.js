@@ -2,6 +2,8 @@ const { executeQuery } = require('../config/database');
 const Message = require('../models/Message');
 const Customer = require('../models/Customer');
 const Ticket = require('../models/Ticket');
+const WhatsAppService = require('./whatsappService');
+const whatsappService = new WhatsAppService();
 
 class BotConversationService {
     constructor() {
@@ -12,6 +14,68 @@ class BotConversationService {
             { id: 'fuel_request', name: 'Fuel Request', label: 'Fuel Request' },
             { id: 'other', name: 'Other', label: 'Other' }
         ];
+    }
+
+    async sendButtons(phoneNumber, header, body, footer, buttons) {
+        try {
+            const dashText = `${header}\n\n${body}`.trim();
+            await this.saveMessage(phoneNumber, dashText, 'system');
+            await whatsappService.sendInteractiveMessage(
+                phoneNumber,
+                header,
+                body,
+                footer || 'Choose an option below',
+                buttons
+            );
+            return { success: true, message: dashText };
+        } catch (e) {
+            console.error('sendButtons failed:', e);
+            return { success: false, error: e.message };
+        }
+    }
+
+    async sendTicketTypeList(phoneNumber) {
+        try {
+            const header = 'Create New Ticket';
+            const body = 'Select the type of ticket you want to create:';
+            const footer = 'Please reply with a number (1-5) or the option name.';
+            // Persist a readable message to dashboard first
+            const dashText = `${header}\n\n${body}`;
+            await this.saveMessage(phoneNumber, dashText, 'system');
+
+            // Build list sections (single section with five rows)
+            const sections = [
+                {
+                    title: 'Ticket Types',
+                    rows: this.ticketTypes.map((t, idx) => ({
+                        id: `ticket_type_${t.id}`,
+                        title: `${idx + 1}) ${t.label}`,
+                        description: t.name
+                    }))
+                }
+            ];
+
+            // WhatsAppService send list
+            if (whatsappService.sendListMessage) {
+                await whatsappService.sendListMessage(
+                    whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
+                    header,
+                    body,
+                    footer,
+                    'Select',
+                    sections
+                );
+            } else {
+                // Fallback to buttons (first three) if list API not available
+                const buttons = this.ticketTypes.slice(0, 3).map(t => ({ id: `ticket_type_${t.id}`, title: t.label }));
+                await this.sendButtons(phoneNumber, header, body, footer, buttons);
+            }
+
+            return { success: true };
+        } catch (e) {
+            console.error('sendTicketTypeList failed:', e);
+            return { success: false, error: e.message };
+        }
     }
 
     // Get conversation state
@@ -280,33 +344,20 @@ class BotConversationService {
             const openTickets = openTicketsResult.data || [];
             
             if (openTickets.length > 0) {
-                // Customer has existing tickets
-                const message = this.buildTicketSelectionMessage(openTickets);
-                await this.saveMessage(phoneNumber, message, 'system');
-                
-                // Update conversation state
+                const header = 'Opening a Customer Ticket';
+                const body = 'Select the ticket you want to open or create a new ticket.';
+                const buttons = [{ id: 'start_create', title: 'Create new ticket' }];
+                const top = openTickets.slice(0, 2);
+                top.forEach(t => buttons.push({ id: `start_open_${t.id}`, title: `${t.ticket_number} (${t.issue_type})` }));
+                await this.sendButtons(phoneNumber, header, body, 'Select an option below', buttons);
                 await this.updateConversationState(phoneNumber, 'ticket_selection', null, {}, null, 'ticket_selection');
-                
-                return {
-                    success: true,
-                    message: message,
-                    hasExistingTickets: true,
-                    openTickets: openTickets
-                };
+                return { success: true, interactiveSent: true, hasExistingTickets: true };
             } else {
-                // New customer - show create ticket option
-                const message = this.buildNewTicketMessage();
-                await this.saveMessage(phoneNumber, message, 'system');
-                
-                // Update conversation state
+                const header = 'Create Customer Ticket';
+                const body = 'Select the ticket to proceed or create a new ticket.';
+                await this.sendButtons(phoneNumber, header, body, 'Choose one of the options below', [{ id: 'start_create', title: 'Create New Ticket' }]);
                 await this.updateConversationState(phoneNumber, 'new_ticket', null, {}, null, 'new_ticket');
-                
-                return {
-                    success: true,
-                    message: message,
-                    hasExistingTickets: false,
-                    openTickets: []
-                };
+                return { success: true, interactiveSent: true, hasExistingTickets: false };
             }
         } catch (error) {
             console.error('Error handling start command:', error);
@@ -337,18 +388,27 @@ class BotConversationService {
     // Handle ticket selection
     async handleTicketSelection(phoneNumber, messageText, openTickets) {
         try {
-            const selection = this.parseSelection(messageText, openTickets.length + 1);
+            let selection = this.parseSelection(messageText, openTickets.length + 1);
+            // Allow special ids coming from interactive button handler to be passed in messageText
+            if (!selection && messageText && messageText.startsWith('id:')) {
+                const id = messageText.replace('id:', '');
+                if (id === 'start_create') selection = 1;
+                else if (id.startsWith('start_open_')) {
+                    const tid = parseInt(id.replace('start_open_', ''), 10);
+                    const idx = openTickets.findIndex(t => t.id === tid);
+                    if (idx >= 0) selection = idx + 2;
+                }
+            }
             
             if (selection === 1) {
                 // Create new ticket
-                const message = this.buildTicketTypeSelectionMessage();
-                await this.saveMessage(phoneNumber, message, 'system');
+                await this.sendTicketTypeList(phoneNumber);
                 await this.updateConversationState(phoneNumber, 'ticket_type_selection', null, {}, null, 'ticket_type_selection');
                 
                 return {
                     success: true,
                     action: 'create_new_ticket',
-                    message: message
+                    interactiveSent: true
                 };
             } else if (selection > 1 && selection <= openTickets.length + 1) {
                 // Select existing ticket
@@ -449,19 +509,28 @@ class BotConversationService {
     // Handle ticket type selection
     async handleTicketTypeSelection(phoneNumber, messageText) {
         try {
-            const selection = this.parseSelection(messageText, this.ticketTypes.length);
+            let selection = this.parseSelection(messageText, this.ticketTypes.length);
+            if (!selection && messageText && messageText.startsWith('id:ticket_type_')) {
+                const key = messageText.replace('id:ticket_type_', '');
+                const idx = this.ticketTypes.findIndex(t => t.id === key);
+                if (idx >= 0) selection = idx + 1;
+            }
             
             if (selection >= 1 && selection <= this.ticketTypes.length) {
                 const selectedType = this.ticketTypes[selection - 1];
                 const message = await this.buildFormFieldsMessage(selectedType.id);
-                
                 await this.saveMessage(phoneNumber, message, 'system');
                 await this.updateConversationState(phoneNumber, 'form_filling', selectedType.id, {}, null, 'form_filling');
+                await this.sendButtons(phoneNumber, 'Enter details', 'Reply with values separated by commas in one message.', 'When ready, press Submit', [
+                    { id: 'form_submit', title: 'Submit' },
+                    { id: 'form_reenter', title: 'Re-enter details' }
+                ]);
                 
                 return {
                     success: true,
                     ticketType: selectedType.id,
-                    message: message
+                    message: message,
+                    interactiveSent: true
                 };
             } else {
                 return {

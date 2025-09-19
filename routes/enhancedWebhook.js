@@ -90,7 +90,11 @@ router.post('/', async (req, res) => {
             console.log(`Processing message from ${message.from}: ${message.text}`);
 
             const phoneNumber = whatsappService.formatPhoneNumber(message.from);
-            const messageText = message.text || '';
+            let messageText = message.text || '';
+            if (message.interactive && message.interactive.id) {
+                // Sentinel to route inside bot service
+                messageText = `id:${message.interactive.id}`;
+            }
             
             // Validate phone number
             if (!phoneNumber) {
@@ -119,7 +123,7 @@ router.post('/', async (req, res) => {
             console.log(`✅ Formatted phone number: ${phoneNumber}`);
            
             // Save the incoming message to database and broadcast to dashboard immediately
-            const savedIncoming = await botConversationService.saveMessage(phoneNumber, messageText, 'customer');
+            const savedIncoming = await botConversationService.saveMessage(phoneNumber, message.text || messageText, 'customer');
             try {
                 if (savedIncoming && savedIncoming.success && savedIncoming.data) {
                     broadcastToDashboard(req, phoneNumber, savedIncoming.data.message_text, 'customer');
@@ -193,6 +197,7 @@ router.post('/', async (req, res) => {
 
             // Handle ticket selection state
             if (currentState.automationChatState === 'ticket_selection') {
+                // Allow interactive id routing via sentinel in messageText (id:*)
                 const openTicketsResult = await botConversationService.getOpenTickets(phoneNumber);
                 if (openTicketsResult.success) {
                     const selectionResult = await botConversationService.handleTicketSelection(
