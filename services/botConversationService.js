@@ -224,8 +224,8 @@ class BotConversationService {
     // Handle initial greeting (when customer first contacts)
     async handleInitialGreeting(phoneNumber, messageText, customerName = null) {
         try {
-            // Save the incoming message
-            await this.saveMessage(phoneNumber, messageText, 'customer');
+            // Incoming customer message is already saved by the webhook layer.
+            // Avoid saving again here to prevent duplicate rows.
             
             // Check if customer already exists
             const existingCustomer = await Customer.findByPhone(phoneNumber);
@@ -268,8 +268,8 @@ class BotConversationService {
     // Handle /start command
     async handleStartCommand(phoneNumber) {
         try {
-            // Save the /start message
-            await this.saveMessage(phoneNumber, '/start', 'customer');
+            // '/start' is saved by the webhook before delegating here.
+            // Do not save again to avoid duplicates.
             
             // Get open tickets for this phone number
             const openTicketsResult = await this.getOpenTickets(phoneNumber);
@@ -566,7 +566,10 @@ class BotConversationService {
             
             let message = `Please provide the following information for ${ticketType}:\n\n`;
             
-            fieldsResult.data.forEach((field, index) => {
+            const seen = new Set();
+            fieldsResult.data.forEach((field) => {
+                if (seen.has(field.field_name)) return;
+                seen.add(field.field_name);
                 message += `${field.field_label}${field.is_required ? ' (required)' : ''}\n`;
             });
             
