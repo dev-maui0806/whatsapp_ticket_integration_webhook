@@ -254,53 +254,53 @@ class WhatsAppService {
     }
 
     // Send list message
-    async sendListMessage(phoneNumber, headerText, bodyText, footerText, buttonText, sections) {
-        try {
-            const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
+    // async sendListMessage(phoneNumber, headerText, bodyText, footerText, buttonText, sections) {
+    //     try {
+    //         const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
             
-            const payload = {
-                messaging_product: "whatsapp",
-                to: phoneNumber,
-                type: "interactive",
-                interactive: {
-                    type: "list",
-                    header: {
-                        type: "text",
-                        text: headerText
-                    },
-                    body: {
-                        text: bodyText
-                    },
-                    footer: {
-                        text: footerText
-                    },
-                    action: {
-                        button: buttonText,
-                        sections: sections
-                    }
-                }
-            };
+    //         const payload = {
+    //             messaging_product: "whatsapp",
+    //             to: phoneNumber,
+    //             type: "interactive",
+    //             interactive: {
+    //                 type: "list",
+    //                 header: {
+    //                     type: "text",
+    //                     text: headerText
+    //                 },
+    //                 body: {
+    //                     text: bodyText
+    //                 },
+    //                 footer: {
+    //                     text: footerText
+    //                 },
+    //                 action: {
+    //                     button: buttonText,
+    //                     sections: sections
+    //                 }
+    //             }
+    //         };
 
-            const response = await axios.post(url, payload, {
-                headers: {
-                    'Authorization': `Bearer ${this.accessToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+    //         const response = await axios.post(url, payload, {
+    //             headers: {
+    //                 'Authorization': `Bearer ${this.accessToken}`,
+    //                 'Content-Type': 'application/json'
+    //             }
+    //         });
 
-            return {
-                success: true,
-                messageId: response.data.messages[0].id,
-                data: response.data
-            };
-        } catch (error) {
-            console.error('WhatsApp List API Error:', error.response?.data || error.message);
-            return {
-                success: false,
-                error: error.response?.data || error.message
-            };
-        }
-    }
+    //         return {
+    //             success: true,
+    //             messageId: response.data.messages[0].id,
+    //             data: response.data
+    //         };
+    //     } catch (error) {
+    //         console.error('WhatsApp List API Error:', error.response?.data || error.message);
+    //         return {
+    //             success: false,
+    //             error: error.response?.data || error.message
+    //         };
+    //     }
+    // }
 
     // Verify webhook
     verifyWebhook(mode, token, challenge) {
