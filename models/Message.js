@@ -125,7 +125,6 @@ class Message {
             LEFT JOIN tickets t ON m.ticket_id = t.id
             WHERE m.phone_number = ?
             ORDER BY m.created_at ASC
-            LIMIT ? OFFSET ?
         `;
         
         const result = await executeQuery(query, [phoneNumber, limit, offset]);
