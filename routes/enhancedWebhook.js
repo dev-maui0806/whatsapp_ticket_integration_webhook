@@ -32,54 +32,15 @@ function broadcastToDashboard(req, phoneNumber, message, senderType = 'system') 
     }
 }
 
-// Helper: Send a WhatsApp message programmatically
+// Helper: Send a WhatsApp message programmatically (delegates to service)
 async function sendWhatsappMessage(phoneNumber, message) {
     try {
         console.log("Sending WhatsApp message to:", phoneNumber, message);
-        
-        // Format phone number properly
-        let formattedPhone = phoneNumber;
-        if (phoneNumber) {
-            // Remove all non-digit characters
-            formattedPhone = phoneNumber.toString().replace(/\D/g, '');
-            
-            // Add country code if not present (assuming India +91)
-            if (formattedPhone.length === 10) {
-                formattedPhone = '91' + formattedPhone;
-            }
-            
-            // Ensure it's not empty
-            if (!formattedPhone) {
-                console.error('❌ Invalid phone number:', phoneNumber);
-                return { success: false, error: 'Invalid phone number' };
-            }
-        } else {
-            console.error('❌ Phone number is null or undefined');
-            return { success: false, error: 'Phone number is required' };
+        const result = await whatsappService.sendMessage(phoneNumber, message);
+        if (!result || result.success === false) {
+            console.error('❌ WhatsApp send failed:', result?.error || 'unknown error');
         }
-        
-        const phoneNumberId = '639323635919894'; // Your business number ID
-        const token = process.env.WHATSAPP_ACCESS_TOKEN; // Load from .env
-        const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
-
-        const data = {
-            messaging_product: 'whatsapp',
-            to: formattedPhone, // Must be in international format, no +
-            type: 'text',
-            text: { body: message }
-        };
-
-        console.log('📱 Sending message to:', formattedPhone);
-
-        const headers = {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        };
-
-        const response = await axios.post(url, data, { headers });
-        console.log('✅ Message sent:', response.data);
-        return { success: true, data: response.data };
-
+        return result || { success: false, error: 'Unknown send error' };
     } catch (error) {
         console.error('❌ sendWhatsappMessage error:', error.response?.data || error.message);
         return { success: false, error: error.message };
