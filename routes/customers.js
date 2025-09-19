@@ -65,7 +65,7 @@ router.get('/:phoneNumber/messages', async (req, res) => {
         const { limit = 50, offset = 0 } = req.query;
         
         const result = await Message.getByPhoneNumber(phoneNumber, parseInt(limit), parseInt(offset));
-        
+        console.log("*******reslt********", result);
         if (result.success) {
             res.status(200).json({
                 success: true,

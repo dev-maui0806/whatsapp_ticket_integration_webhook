@@ -118,6 +118,7 @@ class Message {
 
     // Get messages by phone number
     static async getByPhoneNumber(phoneNumber, limit = 50, offset = 0) {
+        console.log("#######phoneNumber########", phoneNumber)
         const query = `
             SELECT m.*, u.name as sender_name, t.ticket_number
             FROM messages m
