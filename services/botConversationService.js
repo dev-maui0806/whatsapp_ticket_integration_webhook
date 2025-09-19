@@ -221,6 +221,33 @@ class BotConversationService {
         }
     }
 
+    // Handle initial greeting (when customer first contacts)
+    async handleInitialGreeting(phoneNumber, messageText, customerName = null) {
+        try {
+            // Save the incoming message
+            await this.saveMessage(phoneNumber, messageText, 'customer');
+            
+            // Create or find customer
+            const customerResult = await Customer.findOrCreate(phoneNumber, customerName || 'Customer');
+            if (!customerResult.success) {
+                return { success: false, error: 'Failed to create customer' };
+            }
+            
+            // Send initial bot message
+            const botMessage = "Type /start to create a new ticket or view a list of existing tickets. To chat with the agency, send a text message.";
+            await this.saveMessage(phoneNumber, botMessage, 'system');
+            
+            return {
+                success: true,
+                message: botMessage,
+                customer: customerResult.data
+            };
+        } catch (error) {
+            console.error('Error handling initial greeting:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
     // Handle /start command
     async handleStartCommand(phoneNumber) {
         try {
@@ -373,6 +400,35 @@ class BotConversationService {
         }
     }
 
+    // Handle new ticket selection (when customer selects "Create New Ticket")
+    async handleNewTicketSelection(phoneNumber, messageText) {
+        try {
+            const text = messageText.toLowerCase().trim();
+            
+            // Check if customer selected "Create New Ticket" (option 1)
+            if (text === '1' || text.includes('create') || text.includes('new')) {
+                // Show ticket type selection
+                const message = this.buildTicketTypeSelectionMessage();
+                await this.saveMessage(phoneNumber, message, 'system');
+                await this.updateConversationState(phoneNumber, 'ticket_type_selection', null, {}, null, 'ticket_type_selection');
+                
+                return {
+                    success: true,
+                    action: 'show_ticket_types',
+                    message: message
+                };
+            } else {
+                return {
+                    success: false,
+                    error: 'Please reply with "1" or "Create New Ticket" to proceed.'
+                };
+            }
+        } catch (error) {
+            console.error('Error handling new ticket selection:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
     // Handle ticket type selection
     async handleTicketTypeSelection(phoneNumber, messageText) {
         try {
@@ -380,7 +436,7 @@ class BotConversationService {
             
             if (selection >= 1 && selection <= this.ticketTypes.length) {
                 const selectedType = this.ticketTypes[selection - 1];
-                const message = this.buildFormFieldsMessage(selectedType.id);
+                const message = await this.buildFormFieldsMessage(selectedType.id);
                 
                 await this.saveMessage(phoneNumber, message, 'system');
                 await this.updateConversationState(phoneNumber, 'form_filling', selectedType.id, {}, null, 'form_filling');
@@ -428,19 +484,54 @@ class BotConversationService {
                     };
                 }
             } else {
-                // Continue collecting form data
-                // This is a simplified version - in reality, you'd parse the comma-separated values
-                const formFields = messageText.split(',').map(field => field.trim());
+                // Parse comma-separated form data
+                const formFieldsResult = await this.getFormFields(ticketType);
+                if (!formFieldsResult.success || !formFieldsResult.data.length) {
+                    return { success: false, error: 'No form fields found for this ticket type.' };
+                }
                 
-                // For now, just save the raw input
-                const updatedFormData = { ...currentFormData, raw_input: messageText };
+                const formFields = formFieldsResult.data;
+                const inputValues = messageText.split(',').map(field => field.trim());
+                
+                // Map input values to form fields
+                const updatedFormData = { ...currentFormData };
+                formFields.forEach((field, index) => {
+                    if (inputValues[index]) {
+                        updatedFormData[field.field_name] = inputValues[index];
+                    }
+                });
+                
+                // Save the updated form data
                 await this.updateConversationState(phoneNumber, 'form_filling', ticketType, updatedFormData, null, 'form_filling');
                 
-                return {
-                    success: true,
-                    action: 'continue_form_filling',
-                    formData: updatedFormData
-                };
+                // Check if all required fields are filled
+                const requiredFields = formFields.filter(field => field.is_required);
+                const filledRequiredFields = requiredFields.filter(field => updatedFormData[field.field_name]);
+                
+                if (filledRequiredFields.length === requiredFields.length) {
+                    // All required fields are filled, ask for confirmation or auto-submit
+                    const message = "All required information has been provided. Type '/input_end' to create the ticket.";
+                    await this.saveMessage(phoneNumber, message, 'system');
+                    
+                    return {
+                        success: true,
+                        action: 'ready_to_submit',
+                        formData: updatedFormData,
+                        message: message
+                    };
+                } else {
+                    // Still missing some fields
+                    const missingFields = requiredFields.filter(field => !updatedFormData[field.field_name]);
+                    const message = `Please provide the following missing information: ${missingFields.map(f => f.field_label).join(', ')}`;
+                    await this.saveMessage(phoneNumber, message, 'system');
+                    
+                    return {
+                        success: true,
+                        action: 'continue_form_filling',
+                        formData: updatedFormData,
+                        message: message
+                    };
+                }
             }
         } catch (error) {
             console.error('Error handling form filling:', error);
@@ -499,6 +590,23 @@ class BotConversationService {
         
         // Check for text-based selection
         const lowerText = text.toLowerCase();
+        
+        // For ticket type selection, check for specific ticket types
+        if (maxOptions === 5) { // This is ticket type selection
+            if (lowerText.includes('unlock') && lowerText.includes('repair')) {
+                return 2; // Unlock Repair
+            } else if (lowerText.includes('unlock')) {
+                return 1; // Unlock
+            } else if (lowerText.includes('fund')) {
+                return 3; // Funding Request
+            } else if (lowerText.includes('fuel')) {
+                return 4; // Fuel Request
+            } else if (lowerText.includes('other')) {
+                return 5; // Other
+            }
+        }
+        
+        // For general selection (create new ticket, etc.)
         if (lowerText.includes('create') || lowerText.includes('new')) {
             return 1;
         }

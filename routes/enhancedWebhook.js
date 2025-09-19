@@ -76,7 +76,7 @@ router.get('/', (req, res) => {
     console.log('Webhook verification request:', { mode, token, challenge });
 
     const verificationResult = whatsappService.verifyWebhook(mode, token, challenge);
-
+    
     if (verificationResult) {
         console.log('✅ Webhook verified successfully');
         res.status(200).send(challenge);
@@ -93,7 +93,7 @@ router.post('/', async (req, res) => {
         const logQuery = 'INSERT INTO webhook_logs (webhook_data) VALUES (?)';
         await executeQuery(logQuery, [JSON.stringify(req.body)]);
         console.log("webhook_post", req.body);
-        
+
         // Process webhook data
         const messages = whatsappService.processWebhook(req.body);
         console.log("messages", messages);
@@ -148,12 +148,22 @@ router.post('/', async (req, res) => {
 
             // Handle different conversation states
             if (!currentState) {
-                // No conversation state - treat as /start
-                const startResult = await botConversationService.handleStartCommand(phoneNumber);
-                if (startResult.success) {
-                    await sendWhatsappMessage(phoneNumber, startResult.message);
+                // No conversation state - check if this is a greeting or /start command
+                if (messageText.toLowerCase().trim() === '/start') {
+                    const startResult = await botConversationService.handleStartCommand(phoneNumber);
+                    if (startResult.success) {
+                        await sendWhatsappMessage(phoneNumber, startResult.message);
+                    } else {
+                        await sendWhatsappMessage(phoneNumber, 'Error processing /start command. Please try again.');
+                    }
                 } else {
-                    await sendWhatsappMessage(phoneNumber, 'Error processing request. Please try again.');
+                    // This is likely an initial greeting (HELLO, Hi, etc.)
+                    const greetingResult = await botConversationService.handleInitialGreeting(phoneNumber, messageText, message.profileName);
+                    if (greetingResult.success) {
+                        await sendWhatsappMessage(phoneNumber, greetingResult.message);
+                    } else {
+                        await sendWhatsappMessage(phoneNumber, 'Error processing greeting. Please try again.');
+                    }
                 }
                 continue;
             }
@@ -256,15 +266,15 @@ router.post('/', async (req, res) => {
 
             // Handle new ticket state
             if (currentState.automationChatState === 'new_ticket') {
-                const typeSelectionResult = await botConversationService.handleTicketTypeSelection(
+                const newTicketResult = await botConversationService.handleNewTicketSelection(
                     phoneNumber, 
                     messageText
                 );
                 
-                if (typeSelectionResult.success) {
-                    await sendWhatsappMessage(phoneNumber, typeSelectionResult.message);
+                if (newTicketResult.success) {
+                    await sendWhatsappMessage(phoneNumber, newTicketResult.message);
                 } else {
-                    await sendWhatsappMessage(phoneNumber, typeSelectionResult.error);
+                    await sendWhatsappMessage(phoneNumber, newTicketResult.error);
                 }
                 continue;
             }
@@ -280,11 +290,11 @@ router.post('/', async (req, res) => {
                     if (socketService) {
                         const ticket = await Ticket.findById(currentState.currentTicketId);
                         if (ticket) {
-                            socketService.broadcastToAgents('newCustomerMessage', {
+                        socketService.broadcastToAgents('newCustomerMessage', {
                                 ticket: ticket,
-                                message: {
+                            message: {
                                     message_text: messageText,
-                                    created_at: new Date().toISOString(),
+                                created_at: new Date().toISOString(),
                                     sender_type: 'customer'
                                 },
                                 customer: { phone_number: phoneNumber }
@@ -300,18 +310,18 @@ router.post('/', async (req, res) => {
             // Default response for unrecognized messages
             await sendWhatsappMessage(phoneNumber, 'I didn\'t understand that. Please try again or type /start to begin.');
 
-            results.push({
+                results.push({
                 messageId: message.id,
-                from: message.from,
+                    from: message.from,
                 success: true,
                 error: null
-            });
-        }
+                });
+            }
 
         console.log('✅ Webhook processed successfully');
 
-        res.status(200).json({
-            status: 'success',
+        res.status(200).json({ 
+            status: 'success', 
             processed: results.length,
             results: results
         });
@@ -323,9 +333,9 @@ router.post('/', async (req, res) => {
         const logQuery = 'INSERT INTO webhook_logs (webhook_data, processed, error_message) VALUES (?, ?, ?)';
         await executeQuery(logQuery, [JSON.stringify(req.body), false, error.message]);
 
-        res.status(500).json({
-            status: 'error',
-            error: error.message
+        res.status(500).json({ 
+            status: 'error', 
+            error: error.message 
         });
     }
 });
@@ -334,7 +344,7 @@ router.post('/', async (req, res) => {
 router.post('/test-message', async (req, res) => {
     try {
         const { phoneNumber, message } = req.body;
-
+        
         if (!phoneNumber || !message) {
             return res.status(400).json({
                 error: 'Phone number and message are required'
@@ -343,11 +353,11 @@ router.post('/test-message', async (req, res) => {
 
         const result = await sendWhatsappMessage(phoneNumber, message);
 
-        res.status(200).json({
+            res.status(200).json({
             success: result.success,
             data: result.data,
-            error: result.error
-        });
+                error: result.error
+            });
     } catch (error) {
         console.error('Test message error:', error);
         res.status(500).json({ error: error.message });
@@ -369,7 +379,7 @@ router.get('/webhook-logs', async (req, res) => {
         `;
 
         const result = await executeQuery(query, [limit, offset]);
-
+        
         if (result.success) {
             res.status(200).json({
                 success: true,
@@ -388,7 +398,7 @@ router.get('/webhook-logs', async (req, res) => {
 
 // Health check endpoint
 router.get('/health', (req, res) => {
-    res.status(200).json({
+            res.status(200).json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
         service: 'Enhanced WhatsApp Webhook Service'
