@@ -206,6 +206,7 @@ router.post('/', async (req, res) => {
                 } else {
                     // This is likely an initial greeting (HELLO, Hi, etc.)
                     const greetingResult = await botConversationService.handleInitialGreeting(phoneNumber, messageText, message.profileName);
+                    console.log("greetingresult", greetingResult);
                     if (greetingResult.success) {
                         if (greetingResult.message) {
                             await sendWhatsappMessage(phoneNumber, greetingResult.message);
