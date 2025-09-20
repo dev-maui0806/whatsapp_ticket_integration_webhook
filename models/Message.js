@@ -64,7 +64,7 @@ class Message {
         return null;
     }
 
-    // Get messages for a ticket
+    // find messages for a ticket
     static async getByTicketId(ticketId, limit = 50, offset = 0) {
         const query = `
             SELECT m.*, u.name as sender_name
@@ -78,7 +78,7 @@ class Message {
         return result;
     }
 
-    // Get latest message for a ticket
+    // find latest message for a ticket
     static async getLatestByTicketId(ticketId) {
         const query = `
             SELECT m.*, u.name as sender_name
@@ -120,7 +120,7 @@ class Message {
     static async getByPhoneNumber(phoneNumber, limit = 50, offset = 0) {
         console.log("#######phoneNumber########", phoneNumber)
         const query = `
-            SELECT m.* m.sender_type
+            SELECT m.*, m.sender_type
             FROM messages m
             WHERE m.phone_number = ?
             ORDER BY m.created_at ASC
@@ -151,7 +151,7 @@ class Message {
         return null;
     }
 
-    // Get unread messages count for phone number
+    // find unread messages count for phone number
     static async getUnreadCountByPhoneNumber(phoneNumber) {
         const query = `
             SELECT COUNT(*) as count
