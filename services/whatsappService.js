@@ -93,7 +93,6 @@ class WhatsAppService {
                     language: {
                         code: languageCode
                     },
-                    components: components
                 }
             };
 
