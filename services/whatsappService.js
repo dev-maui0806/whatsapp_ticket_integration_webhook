@@ -63,7 +63,7 @@ class WhatsAppService {
     }
 
     //Send template message
-    async sendTemplateMessage(phoneNumber, templateName, languageCode = 'en_US', components = []) {
+    async sendTemplateMessage(phoneNumber, templateName, languageCode = 'en', components = []) {
         try {
             // Guard: mock unless explicitly enabled
             console.log("*********sendTemplateMessage***************", phoneNumber, templateName, languageCode, components)
@@ -89,15 +89,15 @@ class WhatsAppService {
                 to: toNumber,
                 type: "template",
                 template: {
-                    "name": templateName,
-                    "language": {
-                        "code": languageCode
+                    name: templateName,
+                    language: {
+                        code: languageCode
                     },
-                    "components": components
+                    components: components
                 }
             };
 
-            const response = await axios.post(url, JSON.stringify(payload), {
+            const response = await axios.post(url, payload, {
                 headers: {
                     'Authorization': `Bearer ${this.accessToken}`,
                     'Content-Type': 'application/json'
