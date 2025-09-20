@@ -305,10 +305,10 @@ router.post('/', async (req, res) => {
                     messageText
                 );
                 
-                if (newTicketResult.success) {
-                    await sendWhatsappMessage(phoneNumber, newTicketResult.message);
+                if (newTicketResult.success && newTicketResult.interactiveSent ) {
+                    // await sendWhatsappMessage(phoneNumber, newTicketResult.message);
                     broadcastToDashboard(req, phoneNumber, newTicketResult.message, 'system');
-        } else {
+                } else {
                     await sendWhatsappMessage(phoneNumber, newTicketResult.error);
                 }
                 continue;

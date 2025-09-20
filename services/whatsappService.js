@@ -121,14 +121,25 @@ class WhatsAppService {
     // Send interactive list message
     async sendListMessage(phoneNumber, headerText, bodyText, footerText, buttonText, sections) {
         try {
+            console.log('📋 sendListMessage called with:', {
+                phoneNumber,
+                headerText,
+                bodyText,
+                footerText,
+                buttonText,
+                sections
+            });
+            
             // Guard: align with text sender (enabled by default unless creds missing)
             const liveEnabled = "true";
             if (!liveEnabled) {
+                console.log('⚠️ Live send disabled');
                 return { success: true, mocked: true, note: 'Live send disabled (WHATSAPP_ENABLE_LIVE!=true)' };
             }
 
             // Only proceed live when required credentials are present
             if (!this.apiUrl || !this.accessToken || !this.phoneNumberId) {
+                console.log('⚠️ Missing WhatsApp credentials, mocking send');
                 return { success: true, mocked: true };
             }
             const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;

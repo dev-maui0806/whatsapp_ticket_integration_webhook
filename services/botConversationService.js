@@ -300,6 +300,7 @@ class BotConversationService {
             const openTickets = openTicketsResult.data || [];
             
             if (openTickets.length > 0) {
+                console.log("************openTickets", openTickets)
                 const header = 'Opening a Customer Ticket';
                 const body = 'Select the ticket you want to open or create a new ticket.';
                 const buttons = [{ id: 'start_create', title: 'Create new ticket' }];
@@ -380,6 +381,15 @@ class BotConversationService {
                 await this.saveMessage(phoneNumber, systemMessage, 'system');
                 
                 // Send interactive list via WhatsApp
+                console.log('🚀 Sending interactive list to WhatsApp:', {
+                    phoneNumber: whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
+                    header,
+                    body,
+                    footer,
+                    buttonText,
+                    sections
+                });
+                
                 const whatsappResult = await whatsappService.sendListMessage(
                     whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
                     header,
@@ -388,6 +398,8 @@ class BotConversationService {
                     buttonText,
                     sections
                 );
+                
+                console.log('📱 WhatsApp list result:', whatsappResult);
                 
                 if (!whatsappResult.success) {
                     console.error('Failed to send interactive list via WhatsApp:', whatsappResult.error);
@@ -475,16 +487,62 @@ class BotConversationService {
             const text = messageText.toLowerCase().trim();
             
             // Check if customer selected "Create New Ticket" (option 1)
-            if (text === '1' || text.includes('create') || text.includes('new')) {
-                // Show ticket type selection
-                const message = this.buildTicketTypeSelectionMessage();
-                await this.saveMessage(phoneNumber, message, 'system');
+            if (text === '1' || text.includes('create') || text.includes('new') || text === 'id:start_create') {
+                // Show ticket type selection as interactive list
+                const header = 'Create New Ticket';
+                const body = 'Select the type of ticket you want to create:';
+                const footer = 'Choose from the list below:';
+                const buttonText = 'Select Ticket Type';
+                
+                // Build list sections (single section with all ticket types)
+                const sections = [
+                    {
+                        title: 'Ticket Types',
+                        rows: this.ticketTypes.map((t, idx) => ({
+                            id: `ticket_type_${t.id}`,
+                            title: `${idx + 1}) ${t.label}`,
+                            description: t.name
+                        }))
+                    }
+                ];
+                
+                // Save system message for dashboard
+                const systemMessage = `${header}\n\n${body}\n${this.ticketTypes.map((t, idx) => `${idx + 1}) ${t.label}`).join('\n')}\n${footer}`;
+                await this.saveMessage(phoneNumber, systemMessage, 'system');
+                
+                // Send interactive list via WhatsApp
+                console.log('🚀 Sending interactive list to WhatsApp:', {
+                    phoneNumber: whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
+                    header,
+                    body,
+                    footer,
+                    buttonText,
+                    sections
+                });
+                
+                const whatsappResult = await whatsappService.sendListMessage(
+                    whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
+                    header,
+                    body,
+                    footer,
+                    buttonText,
+                    sections
+                );
+                
+                console.log('📱 WhatsApp list result:', whatsappResult);
+                
+                if (!whatsappResult.success) {
+                    console.error('Failed to send interactive list via WhatsApp:', whatsappResult.error);
+                    return { success: false, error: whatsappResult.error };
+                }
+                
                 await this.updateConversationState(phoneNumber, 'ticket_type_selection', null, {}, null, 'ticket_type_selection');
                 
                 return {
                     success: true,
-                    action: 'show_ticket_types',
-                    message: message
+                    action: 'create_new_ticket',
+                    message: `${header}\n${body}\n${footer}\n${buttonText}\n${sections}`,
+                    interactiveSent: true
                 };
             } else {
                 return {
