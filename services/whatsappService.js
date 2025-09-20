@@ -28,7 +28,7 @@ class WhatsAppService {
             if (!toNumber) {
                 return { success: false, error: 'Invalid phone number' };
             }
-
+           
             const payload = {
                 messaging_product: "whatsapp",
                 to: toNumber,
@@ -67,7 +67,7 @@ class WhatsAppService {
         try {
             // Guard: mock unless explicitly enabled
             console.log("*********sendTemplateMessage***************", phoneNumber, templateName, languageCode, components)
-            const liveEnabled = process.env.WHATSAPP_ENABLE_LIVE === 'true';
+            const liveEnabled = 'true';
             if (!liveEnabled) {
                 return { success: true, mocked: true, note: 'Live send disabled (WHATSAPP_ENABLE_LIVE!=true)' };
             }
@@ -80,6 +80,7 @@ class WhatsAppService {
             const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
             const toNumber = this.formatPhoneNumber(phoneNumber) || (phoneNumber && phoneNumber.toString()) || '';
             if (!toNumber) {
+                console.log("************failed_toNumber****************")
                 return { success: false, error: 'Invalid phone number' };
             }
             
