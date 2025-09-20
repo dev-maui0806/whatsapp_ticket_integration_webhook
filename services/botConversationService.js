@@ -486,9 +486,14 @@ class BotConversationService {
         try {
             const text = messageText.toLowerCase().trim();
             
+           
+
             // Check if customer selected "Create New Ticket" (option 1)
             if (text === '1' || text.includes('create') || text.includes('new') || text === 'id:start_create') {
                 // Show ticket type selection as interactive list
+
+                const textmessage = this.buildTicketTypeSelectionMessage();
+                await this.saveMessage(phoneNumber, textmessage, 'system');
                 const header = 'Create New Ticket';
                 const body = 'Select the type of ticket you want to create:';
                 const footer = 'Choose from the list below:';
@@ -541,7 +546,8 @@ class BotConversationService {
                 return {
                     success: true,
                     action: 'create_new_ticket',
-                    message: `${header}\n${body}\n${footer}\n${buttonText}\n${sections}`,
+                    // message: `${header}\n${body}\n${footer}\n${buttonText}\n${sections}`,
+                    message: textmessage,
                     interactiveSent: true
                 };
             } else {
@@ -568,20 +574,61 @@ class BotConversationService {
             
             if (selection >= 1 && selection <= this.ticketTypes.length) {
                 const selectedType = this.ticketTypes[selection - 1];
-                const message = await this.buildFormFieldsMessage(selectedType.id);
-                await this.saveMessage(phoneNumber, message, 'system');
-                await this.updateConversationState(phoneNumber, 'form_filling', selectedType.id, {}, null, 'form_filling');
-                await this.sendButtons(phoneNumber, 'Enter details', 'Reply with values separated by commas in one message.', 'When ready, press Submit', [
-                    { id: 'form_submit', title: 'Submit' },
-                    { id: 'form_reenter', title: 'Re-enter details' }
-                ]);
                 
-                return {
-                    success: true,
-                    ticketType: selectedType.id,
-                    message: message,
-                    interactiveSent: true
+                // Map ticket types to template names
+                const templateMap = {
+                    'lock_open': 'create_ticket_lock_open',
+                    'lock_repair': 'create_ticket_lock_repair', 
+                    'fund_request': 'create_fund_request_ticket',
+                    'fuel_request': 'create_ticket_fuel_request',
                 };
+                
+                const templateName = templateMap[selectedType.id];
+                
+                if (templateName) {
+                    // Send WhatsApp template message
+                    console.log('🚀 Sending template message:', templateName);
+                    const whatsappResult = await whatsappService.sendTemplateMessage(
+                        whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
+                        templateName
+                    );
+                    
+                    if (!whatsappResult.success) {
+                        console.error('Failed to send template message:', whatsappResult.error);
+                        return { success: false, error: whatsappResult.error };
+                    }
+                    
+                    // Save system message for dashboard (plain text format)
+                    const systemMessage = `Please provide the following information for ${selectedType.label}:`;
+                    await this.saveMessage(phoneNumber, systemMessage, 'system');
+                    
+                    // Update conversation state to wait for template completion
+                    await this.updateConversationState(phoneNumber, 'template_form_filling', selectedType.id, {}, null, 'template_form_filling');
+                    
+                    return {
+                        success: true,
+                        ticketType: selectedType.id,
+                        templateName: templateName,
+                        message: systemMessage,
+                        interactiveSent: true
+                    };
+                } else {
+                    // Fallback to old method for 'other' type
+                    const message = await this.buildFormFieldsMessage(selectedType.id);
+                    await this.saveMessage(phoneNumber, message, 'system');
+                    await this.updateConversationState(phoneNumber, 'form_filling', selectedType.id, {}, null, 'form_filling');
+                    await this.sendButtons(phoneNumber, 'Enter details', 'Reply with values separated by commas in one message.', 'When ready, press Submit', [
+                        { id: 'form_submit', title: 'Submit' },
+                        { id: 'form_reenter', title: 'Re-enter details' }
+                    ]);
+                    
+                    return {
+                        success: true,
+                        ticketType: selectedType.id,
+                        message: message,
+                        interactiveSent: true
+                    };
+                }
             } else {
                 return {
                     success: false,
@@ -590,6 +637,55 @@ class BotConversationService {
             }
         } catch (error) {
             console.error('Error handling ticket type selection:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    // Handle template form completion (when Complete button is pressed)
+    async handleTemplateFormCompletion(phoneNumber, formData, ticketType) {
+        try {
+            console.log('🎯 Handling template form completion:', {
+                phoneNumber,
+                formData,
+                ticketType
+            });
+            
+            // Create ticket from form data
+            const ticketResult = await this.createTicketFromFormData(phoneNumber, ticketType, formData);
+            
+            if (ticketResult.success) {
+                // Send confirmation message
+                const confirmationMessage = `Ticket ${ticketResult.ticketNumber} Created.`;
+                await this.saveMessage(phoneNumber, confirmationMessage, 'system');
+                
+                // Send confirmation to WhatsApp
+                const whatsappResult = await whatsappService.sendMessage(
+                    whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
+                    confirmationMessage
+                );
+                
+                if (!whatsappResult.success) {
+                    console.error('Failed to send confirmation to WhatsApp:', whatsappResult.error);
+                }
+                
+                // Reset conversation state
+                await this.updateConversationState(phoneNumber, 'idle', null, {}, null, 'idle');
+                
+                return {
+                    success: true,
+                    action: 'ticket_created',
+                    ticketNumber: ticketResult.ticketNumber,
+                    message: confirmationMessage,
+                    whatsappSent: whatsappResult.success
+                };
+            } else {
+                return {
+                    success: false,
+                    error: ticketResult.error
+                };
+            }
+        } catch (error) {
+            console.error('Error handling template form completion:', error);
             return { success: false, error: error.message };
         }
     }

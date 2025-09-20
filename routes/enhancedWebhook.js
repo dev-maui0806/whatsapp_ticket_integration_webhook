@@ -266,10 +266,42 @@ router.post('/', async (req, res) => {
                 );
                 
                 if (typeSelectionResult.success) {
-                    await sendWhatsappMessage(phoneNumber, typeSelectionResult.message);
+                    // Only send plain text message if no interactive message was sent
+                    if (!typeSelectionResult.interactiveSent) {
+                        await sendWhatsappMessage(phoneNumber, typeSelectionResult.message);
+                    }
+                    // Always broadcast to dashboard for consistency
                     broadcastToDashboard(req, phoneNumber, typeSelectionResult.message, 'system');
                 } else {
                     await sendWhatsappMessage(phoneNumber, typeSelectionResult.error);
+                }
+                continue;
+            }
+
+            // Handle template form filling state
+            if (currentState.automationChatState === 'template_form_filling') {
+                // Check if this is a template form completion (Complete button pressed)
+                if (messageText && messageText.toLowerCase().includes('complete')) {
+                    // Extract form data from the message (this would come from WhatsApp webhook)
+                    // For now, we'll create a placeholder - in real implementation, 
+                    // WhatsApp would send the form data in the webhook
+                    const formData = this.extractFormDataFromMessage(messageText, currentState.ticketType);
+                    
+                    const completionResult = await botConversationService.handleTemplateFormCompletion(
+                        phoneNumber,
+                        formData,
+                        currentState.ticketType
+                    );
+                    
+                    if (completionResult.success) {
+                        // Message is already sent by handleTemplateFormCompletion
+                        broadcastToDashboard(req, phoneNumber, completionResult.message, 'system');
+                    } else {
+                        await sendWhatsappMessage(phoneNumber, completionResult.error);
+                    }
+                } else {
+                    // Regular message during template form filling
+                    await sendWhatsappMessage(phoneNumber, 'Please complete the form and press the Complete button.');
                 }
                 continue;
             }
@@ -308,7 +340,7 @@ router.post('/', async (req, res) => {
                 if (newTicketResult.success && newTicketResult.interactiveSent ) {
                     // await sendWhatsappMessage(phoneNumber, newTicketResult.message);
                     broadcastToDashboard(req, phoneNumber, newTicketResult.message, 'system');
-                } else {
+        } else {
                     await sendWhatsappMessage(phoneNumber, newTicketResult.error);
                 }
                 continue;
@@ -435,6 +467,43 @@ router.get('/webhook-logs', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Helper function to extract form data from WhatsApp template completion
+function extractFormDataFromMessage(messageText, ticketType) {
+    // This is a placeholder - in real implementation, WhatsApp would send structured data
+    // For now, we'll create sample data based on ticket type
+    const formDataMap = {
+        'lock_open': {
+            vehicle_number: 'Sample Vehicle',
+            driver_number: 'Sample Driver',
+            location: 'Sample Location',
+            comment: 'Sample Comment'
+        },
+        'lock_repair': {
+            vehicle_number: 'Sample Vehicle',
+            driver_number: 'Sample Driver', 
+            location: 'Sample Location',
+            availability_date: '2024-01-01',
+            availability_time: '10:00',
+            comment: 'Sample Comment'
+        },
+        'fund_request': {
+            amount: '1000',
+            upi_id: 'sample@upi',
+            comment: 'Sample Comment'
+        },
+        'fuel_request': {
+            vehicle_number: 'Sample Vehicle',
+            fuel_type: 'Petrol',
+            quantity: '50',
+            amount: '5000',
+            location: 'Sample Location',
+            comment: 'Sample Comment'
+        }
+    };
+    
+    return formDataMap[ticketType] || {};
+}
 
 // Health check endpoint
 router.get('/health', (req, res) => {
