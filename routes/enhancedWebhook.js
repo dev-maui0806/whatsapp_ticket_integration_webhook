@@ -245,9 +245,9 @@ router.post('/', async (req, res) => {
                                             sender_type: 'system'
                                         },
                                         customer: { phone_number: phoneNumber }
-                                    });
-                                }
-                            }
+                });
+            }
+        }
                         } catch (e) {
                             console.error('Socket broadcast error:', e);
                         }
@@ -276,7 +276,11 @@ router.post('/', async (req, res) => {
                     // Always broadcast to dashboard for consistency
                     broadcastToDashboard(req, phoneNumber, typeSelectionResult.message, 'system');
                 } else {
-                    await sendWhatsappMessage(phoneNumber, typeSelectionResult.error);
+                    // Send error message as string, not object
+                    const errorMessage = typeof typeSelectionResult.error === 'string' 
+                        ? typeSelectionResult.error 
+                        : 'Failed to process ticket type selection. Please try again.';
+                    await sendWhatsappMessage(phoneNumber, errorMessage);
                 }
                 continue;
             }

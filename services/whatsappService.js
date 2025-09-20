@@ -84,17 +84,27 @@ class WhatsAppService {
                 return { success: false, error: 'Invalid phone number' };
             }
             
+            // Build template payload - only include components if they exist and are valid
+            const templatePayload = {
+                name: templateName,
+                language: {
+                    code: languageCode
+                }
+            };
+
+            // Only add components if they are provided and not empty
+            if (components && components.length > 0) {
+                templatePayload.components = components;
+            }
+
             const payload = {
                 messaging_product: "whatsapp",
                 to: toNumber,
                 type: "template",
-                template: {
-                    name: templateName,
-                    language: {
-                        code: languageCode
-                    },
-                }
+                template: templatePayload
             };
+
+            console.log("📤 Sending template payload:", JSON.stringify(payload, null, 2));
 
             const response = await axios.post(url, payload, {
                 headers: {

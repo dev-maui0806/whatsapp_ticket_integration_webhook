@@ -597,7 +597,17 @@ class BotConversationService {
                     
                     if (!whatsappResult.success) {
                         console.error('Failed to send template message:', whatsappResult.error);
-                        return { success: false, error: whatsappResult.error };
+                        // Fallback to plain text message if template fails
+                        const fallbackMessage = `Please provide the following information for ${selectedType.label}:\n\nPlease fill out the form and submit your request.`;
+                        await this.saveMessage(phoneNumber, fallbackMessage, 'system');
+                        
+                        return { 
+                            success: true, 
+                            ticketType: selectedType.id,
+                            message: fallbackMessage,
+                            interactiveSent: false,
+                            fallback: true
+                        };
                     }
                     
                     // Save system message for dashboard (plain text format)
