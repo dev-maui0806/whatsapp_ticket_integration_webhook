@@ -95,7 +95,7 @@ class Customer {
         return result;
     }
 
-    // Get customer tickets
+    // find customer tickets
     async getTickets(status = null) {
         let query = `
             SELECT t.*, u.name as assigned_agent_name
@@ -117,7 +117,7 @@ class Customer {
         return result;
     }
 
-    // Get open tickets count
+    // getphone open tickets count
     async getOpenTicketsCount() {
         const query = `
             SELECT COUNT(*) as count
@@ -134,7 +134,7 @@ class Customer {
         return 0;
     }
 
-    // Get pending chats count (unread messages from customer)
+    // getphone pending chats count (unread messages from customer)
     async getPendingChatsCount() {
         const query = `
             SELECT COUNT(*) as count
@@ -153,7 +153,7 @@ class Customer {
         return 0;
     }
 
-    // Get all customers with their statistics
+    // getphone all customers with their statistics
     static async getAllWithStats() {
         const query = `
             SELECT 
@@ -174,7 +174,7 @@ class Customer {
         return result;
     }
 
-    // Get customer by phone number with stats
+    // getphone customer by phone number with stats
     static async findByPhoneWithStats(phoneNumber) {
         const query = `
             SELECT 
