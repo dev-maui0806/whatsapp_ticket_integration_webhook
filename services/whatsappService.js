@@ -63,7 +63,7 @@ class WhatsAppService {
     }
 
     //Send template message
-    async sendTemplateMessage(phoneNumber, templateName, languageCode = 'en', components = []) {
+    async sendTemplateMessage(phoneNumber, templateName, languageCode = "en", components = []) {
         try {
             // Guard: mock unless explicitly enabled
             console.log("*********sendTemplateMessage***************", phoneNumber, templateName, languageCode, components)
@@ -86,11 +86,11 @@ class WhatsAppService {
             
             // Build template payload - only include components if they exist and are valid
             const templatePayload = {
-                name: templateName,
+                name:"hello_world" ,
                 language: {
                     code: languageCode
-                }
-            };
+                },
+            }
 
             // Only add components if they are provided and not empty
             if (components && components.length > 0) {
