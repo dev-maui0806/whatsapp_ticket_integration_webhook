@@ -120,7 +120,7 @@ class Message {
     static async getByPhoneNumber(phoneNumber, limit = 50, offset = 0) {
         console.log("#######phoneNumber########", phoneNumber)
         const query = `
-            SELECT m.* m.sender_type as sender_name
+            SELECT m.* m.sender_type
             FROM messages m
             WHERE m.phone_number = ?
             ORDER BY m.created_at ASC
