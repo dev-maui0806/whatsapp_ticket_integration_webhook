@@ -97,7 +97,7 @@ class WhatsAppService {
                 }
             };
 
-            const response = await axios.post(url, payload, {
+            const response = await axios.post(url, JSON.stringify(payload), {
                 headers: {
                     'Authorization': `Bearer ${this.accessToken}`,
                     'Content-Type': 'application/json'
