@@ -66,6 +66,7 @@ class WhatsAppService {
     async sendTemplateMessage(phoneNumber, templateName, languageCode = 'en_US', components = []) {
         try {
             // Guard: mock unless explicitly enabled
+            console.log("*********sendTemplateMessage***************", phoneNumber, templateName, languageCode, components)
             const liveEnabled = process.env.WHATSAPP_ENABLE_LIVE === 'true';
             if (!liveEnabled) {
                 return { success: true, mocked: true, note: 'Live send disabled (WHATSAPP_ENABLE_LIVE!=true)' };
@@ -87,11 +88,11 @@ class WhatsAppService {
                 to: toNumber,
                 type: "template",
                 template: {
-                    name: templateName,
-                    language: {
-                        code: languageCode
+                    "name": templateName,
+                    "language": {
+                        "code": languageCode
                     },
-                    components: components
+                    "components": components
                 }
             };
 
@@ -102,7 +103,7 @@ class WhatsAppService {
                 },
                 timeout: 10000
             });
-
+            console.log("*********response***************", response);
             return {
                 success: true,
                 messageId: response.data.messages[0].id,

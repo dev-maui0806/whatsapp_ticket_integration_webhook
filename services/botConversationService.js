@@ -565,8 +565,10 @@ class BotConversationService {
     // Handle ticket type selection
     async handleTicketTypeSelection(phoneNumber, messageText) {
         try {
+            console.log("***********handleTicketTypeSelection***************", phoneNumber, messageText)
+
             let selection = this.parseSelection(messageText, this.ticketTypes.length);
-            if (!selection && messageText && messageText.startsWith('id:ticket_type_')) {
+            if (!selection && messageText && messageText.startsWith('id:ticket_type_')) {   
                 const key = messageText.replace('id:ticket_type_', '');
                 const idx = this.ticketTypes.findIndex(t => t.id === key);
                 if (idx >= 0) selection = idx + 1;
@@ -603,7 +605,7 @@ class BotConversationService {
                     await this.saveMessage(phoneNumber, systemMessage, 'system');
                     
                     // Update conversation state to wait for template completion
-                    await this.updateConversationState(phoneNumber, 'template_form_filling', selectedType.id, {}, null, 'template_form_filling');
+                    // await this.updateConversationState(phoneNumber, 'template_form_filling', selectedType.id, {}, null, 'template_form_filling');
                     
                     return {
                         success: true,

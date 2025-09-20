@@ -87,7 +87,7 @@ router.post('/', async (req, res) => {
         // Process each message
         const results = [];
         for (const message of messages) {
-            console.log(`Processing message from ${message.from}: ${message.text}`);
+            console.log(`***************Processing message from******************* ${message.from}: ${message.text}`);
 
             const phoneNumber = whatsappService.formatPhoneNumber(message.from);
             const messageText = message.text || '';
@@ -134,7 +134,7 @@ router.post('/', async (req, res) => {
             
             // Get current conversation state
             const stateResult = await botConversationService.getConversationState(phoneNumber);
-            console.log("Current state:", stateResult);
+            console.log("**************Current state:*****************", stateResult);
             
             if (!stateResult.success) {
                 console.error('Failed to get conversation state:', stateResult.error);
@@ -151,7 +151,7 @@ router.post('/', async (req, res) => {
             }
 
             const currentState = stateResult.data;
-            console.log("Current state data:", currentState);
+            console.log("**************Current state data:***************", currentState);
 
             // Handle /start command or greeting_start button
             if (messageText.toLowerCase().trim() === '/start') {
@@ -259,7 +259,10 @@ router.post('/', async (req, res) => {
             }
 
             // Handle ticket type selection state
-            if (currentState.automationChatState === 'ticket_type_selection') {
+            if (currentState.automationChatState == 'ticket_type_selection') {
+
+                console.log("***********ticket_type_selection***************", currentState.automationChatState, phoneNumber, interactiveId, messageText)
+                
                 const typeSelectionResult = await botConversationService.handleTicketTypeSelection(
                     phoneNumber, 
                     interactiveId ? `id:${interactiveId}` : messageText

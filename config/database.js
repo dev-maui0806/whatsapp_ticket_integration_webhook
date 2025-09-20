@@ -39,8 +39,8 @@ const testConnection = async () => {
 // Execute query with error handling
 const executeQuery = async (query, params = []) => {
     try {
-        console.log("_______111___", query);
-        console.log("_________222______", params);
+        // console.log("_______111___", query);
+        // console.log("_________222______", params);
         const [rows] = await promisePool.execute(query, params);
         return { success: true, data: rows };
     } catch (error) {

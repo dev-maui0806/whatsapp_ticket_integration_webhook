@@ -511,7 +511,7 @@ router.post('/', async (req, res) => {
         // Log webhook data to database
         const logQuery = 'INSERT INTO webhook_logs (webhook_data) VALUES (?)';
         await executeQuery(logQuery, [JSON.stringify(req.body)]);
-        console.log("webhook_post", req.body);
+        console.log("**************webhook_post**************", req.body);
         // Process webhook data
         const messages = whatsappService.processWebhook(req.body);
         console.log("messages", messages);
@@ -530,7 +530,7 @@ router.post('/', async (req, res) => {
            
             // Get current conversation state
             const stateResult = await getConversationState(phoneNumber);
-            console.log("***************", phoneNumber, messageText, stateResult)
+            console.log("***************stateResult**************", phoneNumber, messageText, stateResult)
             if (!stateResult.success) {
                 console.error('Failed to get conversation state:', stateResult.error);
                 continue;
