@@ -126,7 +126,7 @@ class Message {
             ORDER BY m.created_at ASC
         `;
         
-        const result = await executeQuery(query, [phoneNumber, limit, offset]);
+        const result = await executeQuery(query, [phoneNumber]);
         return result;
     }
 
