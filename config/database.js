@@ -11,7 +11,10 @@ const dbConfig = {
     connectionLimit: 10,
     queueLimit: 0,
     port:process.env.DB_PORT || 3306,
-    ssl: false // Disable SSL for local development
+    ssl: {
+        mode: 'required',
+        rejectUnauthorized: false // Aiven free plan
+    }
 };
 
 // Create connection pool

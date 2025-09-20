@@ -116,7 +116,7 @@ router.post('/:phoneNumber/message', async (req, res) => {
             const whatsappService = req.app.get('whatsappService');
             if (whatsappService) {
                 const whatsappResult = await whatsappService.sendMessage(phoneNumber, message);
-                console.log('WhatsApp send result:', whatsappResult);
+                console.log('***************WhatsApp send result:', whatsappResult);
             }
             
             // Broadcast to socket clients

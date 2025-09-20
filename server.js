@@ -11,6 +11,7 @@ const { testConnection } = require('./config/database');
 const webhookRoutes = require('./routes/webhook');
 const ticketRoutes = require('./routes/tickets');
 const SocketService = require('./services/socketService');
+const WhatsAppService = require('./services/whatsappService');
 
 // Initialize Express app
 const app = express();
@@ -98,12 +99,14 @@ app.get('/api', (req, res) => {
     });
 });
 
-// Initialize Socket Service
+// Initialize Services
 const socketService = new SocketService(io);
+const whatsappService = new WhatsAppService();
 
-// Make io and socketService available to other modules
+// Make services available to other modules
 app.set('io', io);
 app.set('socketService', socketService);
+app.set('whatsappService', whatsappService);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
