@@ -97,8 +97,6 @@ class WhatsAppService {
                       {
                         "type": "action",
                         "action": {
-                          "flow_message_version": "3",
-                          "flow_token": "unused",
                           "flow_id": "1096833082625277",
                           "flow_action": "navigate",
                           "flow_action_payload": {
