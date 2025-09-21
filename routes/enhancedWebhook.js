@@ -292,8 +292,8 @@ router.post('/', async (req, res) => {
                     // Extract form data from the message (this would come from WhatsApp webhook)
                     // For now, we'll create a placeholder - in real implementation, 
                     // WhatsApp would send the form data in the webhook
-                    const formData = extractFormDataFromMessage(messageText, currentState.ticketType);
-                    console.log(FormData)
+                    const formData = this.extractFormDataFromMessage(messageText, currentState.ticketType);
+                    
                     const completionResult = await botConversationService.handleTemplateFormCompletion(
                         phoneNumber,
                         formData,
@@ -314,28 +314,28 @@ router.post('/', async (req, res) => {
             }
 
             // Handle form filling state
-            // if (currentState.automationChatState === 'form_filling') {
-            //     const formResult = await botConversationService.handleFormFilling(
-            //         phoneNumber, 
-            //         messageText, 
-            //         currentState.ticketType, 
-            //         currentState.formData,
-            //         interactiveId
-            //     );
+            if (currentState.automationChatState === 'form_filling') {
+                const formResult = await botConversationService.handleFormFilling(
+                    phoneNumber, 
+                    messageText, 
+                    currentState.ticketType, 
+                    currentState.formData,
+                    interactiveId
+                );
                 
-            //     if (formResult.success) {
-            //         if (formResult.action === 'ticket_created') {
-            //             await sendWhatsappMessage(phoneNumber, formResult.message);
-            //             broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
-            //         } else if (formResult.message) {
-            //             await sendWhatsappMessage(phoneNumber, formResult.message);
-            //             broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
-            //         }
-            //     } else {
-            //         await sendWhatsappMessage(phoneNumber, formResult.error);
-            //     }
-            //     continue;
-            // }
+                if (formResult.success) {
+                    if (formResult.action === 'ticket_created') {
+                        await sendWhatsappMessage(phoneNumber, formResult.message);
+                        broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
+                    } else if (formResult.message) {
+                        await sendWhatsappMessage(phoneNumber, formResult.message);
+                        broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
+                    }
+                } else {
+                    await sendWhatsappMessage(phoneNumber, formResult.error);
+                }
+                continue;
+            }
 
             // Handle new ticket state
             if (currentState.automationChatState === 'new_ticket') {

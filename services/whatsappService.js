@@ -28,7 +28,7 @@ class WhatsAppService {
             if (!toNumber) {
                 return { success: false, error: 'Invalid phone number' };
             }
-
+           
             const payload = {
                 messaging_product: "whatsapp",
                 to: toNumber,
@@ -63,7 +63,7 @@ class WhatsAppService {
     }
 
     //Send template message
-    async sendTemplateMessage(phoneNumber, templateName, languageCode = "en", components = []) {
+    async sendTemplateMessage(phoneNumber, templateName, languageCode = "en_US", components = []) {
         try {
             // Guard: mock unless explicitly enabled
             console.log("*********sendTemplateMessage***************", phoneNumber, templateName, languageCode, components)
@@ -83,19 +83,19 @@ class WhatsAppService {
                 console.log("************failed_toNumber****************")
                 return { success: false, error: 'Invalid phone number' };
             }
-
+            
             // Build template payload - only include components if they exist and are valid
             const templatePayload = {
-                "name": "utility_templete",
-                "language": {
-                    "code": languageCode
+                name: "template_test",
+                language: {
+                    code: languageCode
                 }
-            }
+            };
 
             // Only add components if they are provided and not empty
-            // if (components && components.length > 0) {
-            //     templatePayload.components = components;
-            // }
+            if (components && components.length > 0) {
+                templatePayload.components = components;
+            }
 
             const payload = {
                 messaging_product: "whatsapp",
@@ -140,7 +140,7 @@ class WhatsAppService {
                 buttonText,
                 sections
             });
-
+            
             // Guard: align with text sender (enabled by default unless creds missing)
             const liveEnabled = "true";
             if (!liveEnabled) {
@@ -212,7 +212,7 @@ class WhatsAppService {
     //             phoneNumber,
     //             templateName
     //         });
-
+            
     //         // Guard: align with text sender (enabled by default unless creds missing)
     //         const liveEnabled = "true";
     //         if (!liveEnabled) {
@@ -225,7 +225,7 @@ class WhatsAppService {
     //             console.log('⚠️ Missing WhatsApp credentials, mocking send');
     //             return { success: true, mocked: true };
     //         }
-
+            
     //         const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
     //         const toNumber = this.formatPhoneNumber(phoneNumber) || (phoneNumber && phoneNumber.toString()) || '';
     //         if (!toNumber) {
@@ -345,7 +345,7 @@ class WhatsAppService {
     // async sendListMessage(phoneNumber, headerText, bodyText, footerText, buttonText, sections) {
     //     try {
     //         const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
-
+            
     //         const payload = {
     //             messaging_product: "whatsapp",
     //             to: phoneNumber,
