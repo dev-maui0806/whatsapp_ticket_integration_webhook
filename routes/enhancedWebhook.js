@@ -285,30 +285,26 @@ router.post('/', async (req, res) => {
                 continue;
             }
 
-            // Handle template form filling state
-            if (currentState.automationChatState === 'template_form_filling') {
-                // Check if this is a template form completion (Complete button pressed)
-                if (messageText && messageText.toLowerCase().includes('complete')) {
-                    // Extract form data from the message (this would come from WhatsApp webhook)
-                    // For now, we'll create a placeholder - in real implementation, 
-                    // WhatsApp would send the form data in the webhook
-                    const formData = this.extractFormDataFromMessage(messageText, currentState.ticketType);
+            // Handle step-by-step form filling state
+            if (currentState.automationChatState === 'step_form_filling') {
+                const stepResult = await botConversationService.handleStepFormFilling(
+                    phoneNumber,
+                    messageText,
+                    currentState.ticketType,
+                    currentState.formData || {},
+                    currentState.currentField
+                );
+                
+                if (stepResult.success) {
+                    // Message is already sent by handleStepFormFilling
+                    broadcastToDashboard(req, phoneNumber, stepResult.message, 'system');
                     
-                    const completionResult = await botConversationService.handleTemplateFormCompletion(
-                        phoneNumber,
-                        formData,
-                        currentState.ticketType
-                    );
-                    
-                    if (completionResult.success) {
-                        // Message is already sent by handleTemplateFormCompletion
-                        broadcastToDashboard(req, phoneNumber, completionResult.message, 'system');
-                    } else {
-                        await sendWhatsappMessage(phoneNumber, completionResult.error);
+                    // If ticket was created, broadcast the success message
+                    if (stepResult.action === 'ticket_created') {
+                        broadcastToDashboard(req, phoneNumber, `🎉 Ticket ${stepResult.ticket.ticket_number} created successfully!`, 'system');
                     }
                 } else {
-                    // Regular message during template form filling
-                    await sendWhatsappMessage(phoneNumber, 'Please complete the form and press the Complete button.');
+                    await sendWhatsappMessage(phoneNumber, stepResult.error);
                 }
                 continue;
             }

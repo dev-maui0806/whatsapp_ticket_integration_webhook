@@ -121,7 +121,7 @@ class Ticket {
           LEFT JOIN customers c ON t.customer_id = c.id
           LEFT JOIN users u ON t.assigned_agent_id = u.id
         `;
-      
+        
         const params = [];
       
         if (status) {
@@ -134,6 +134,7 @@ class Ticket {
         params.push(offset, limit);
       
         const result = await executeQuery(query, []);
+        console.log("result", result)
         return result;
       }
 

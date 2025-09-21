@@ -77,6 +77,7 @@ class BotConversationService {
                         currentStep: state.current_step,
                         ticketType: state.ticket_type,
                         formData: formData,
+                        currentField: formData.currentField || null,
                         currentTicketId: state.current_ticket_id,
                         automationChatState: state.automation_chat_state,
                         createdAt: state.created_at,
@@ -93,10 +94,15 @@ class BotConversationService {
     }
 
     // Update conversation state
-    async updateConversationState(phoneNumber, currentStep, ticketType = null, formData = {}, currentTicketId = null, automationChatState = null) {
+    async updateConversationState(phoneNumber, currentStep, ticketType = null, formData = {}, currentTicketId = null, automationChatState = null, currentField = null) {
         try {
             // Ensure formData is always an object before stringifying
             const safeFormData = typeof formData === 'object' && formData !== null ? formData : {};
+            
+            // Add currentField to formData if provided
+            if (currentField) {
+                safeFormData.currentField = currentField;
+            }
             
             const query = `
                 INSERT INTO bot_conversation_states (
@@ -577,70 +583,34 @@ class BotConversationService {
             if (selection >= 1 && selection <= this.ticketTypes.length) {
                 const selectedType = this.ticketTypes[selection - 1];
                 
-                // Map ticket types to template names
-                const templateMap = {
-                    'lock_open': 'create_ticket_lock_open',
-                    'lock_repair': 'create_ticket_lock_repair', 
-                    'fund_request': 'create_fund_request_ticket',
-                    'fuel_request': 'create_ticket_fuel_request',
-                };
+                // Start step-by-step form filling process
+                console.log('🚀 Starting step-by-step form filling for:', selectedType.label);
                 
-                const templateName = templateMap[selectedType.id];
-                
-                if (templateName) {
-                    // Send WhatsApp template message
-                    console.log('🚀 Sending template message:', templateName);
-                    const whatsappResult = await whatsappService.sendTemplateMessage(
-                        whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
-                        templateName
-                    );
-                    
-                    if (!whatsappResult.success) {
-                        console.error('Failed to send template message:', whatsappResult.error);
-                        // Fallback to plain text message if template fails
-                        const fallbackMessage = `Please provide the following information for ${selectedType.label}:\n\nPlease fill out the form and submit your request.`;
-                        await this.saveMessage(phoneNumber, fallbackMessage, 'system');
-                        
-                        return { 
-                            success: true, 
-                            ticketType: selectedType.id,
-                            message: fallbackMessage,
-                            interactiveSent: false,
-                            fallback: true
-                        };
-                    }
-                    
-                    // Save system message for dashboard (plain text format)
-                    const systemMessage = `Please provide the following information for ${selectedType.label}:`;
-                    await this.saveMessage(phoneNumber, systemMessage, 'system');
-                    
-                    // Update conversation state to wait for template completion
-                    await this.updateConversationState(phoneNumber, 'template_form_filling', selectedType.id, {}, null, 'template_form_filling');
-                    
-                    return {
-                        success: true,
-                        ticketType: selectedType.id,
-                        templateName: templateName,
-                        message: systemMessage,
-                        interactiveSent: true
-                    };
-                } else {
-                    // Fallback to old method for 'other' type
-                    const message = await this.buildFormFieldsMessage(selectedType.id);
-                    await this.saveMessage(phoneNumber, message, 'system');
-                    await this.updateConversationState(phoneNumber, 'form_filling', selectedType.id, {}, null, 'form_filling');
-                    await this.sendButtons(phoneNumber, 'Enter details', 'Reply with values separated by commas in one message.', 'When ready, press Submit', [
-                        { id: 'form_submit', title: 'Submit' },
-                        { id: 'form_reenter', title: 'Re-enter details' }
-                    ]);
-                    
-                    return {
-                        success: true,
-                        ticketType: selectedType.id,
-                        message: message,
-                        interactiveSent: true
-                    };
+                // Get form fields for this ticket type
+                const formFieldsResult = await this.getFormFields(selectedType.id);
+                if (!formFieldsResult.success || !formFieldsResult.data.length) {
+                    const errorMessage = `No form fields found for ${selectedType.label}. Please contact support.`;
+                    await this.saveMessage(phoneNumber, errorMessage, 'system');
+                    return { success: false, error: errorMessage };
                 }
+                
+                const formFields = formFieldsResult.data;
+                const firstField = formFields[0];
+                
+                // Send initial message with first field
+                const initialMessage = `Great! You selected ${selectedType.label}.\n\nPlease provide the following information step by step:\n\n${firstField.field_label}${firstField.is_required ? ' (required)' : ''}`;
+                await this.saveMessage(phoneNumber, initialMessage, 'system');
+                
+                // Update conversation state to start step-by-step form filling
+                await this.updateConversationState(phoneNumber, 'step_form_filling', selectedType.id, {}, firstField.field_name, 'step_form_filling');
+                
+                return {
+                    success: true,
+                    ticketType: selectedType.id,
+                    message: initialMessage,
+                    currentField: firstField.field_name,
+                    interactiveSent: false
+                };
             } else {
                 return {
                     success: false,
@@ -653,134 +623,216 @@ class BotConversationService {
         }
     }
 
-    // Handle template form completion (when Complete button is pressed)
-    async handleTemplateFormCompletion(phoneNumber, formData, ticketType) {
+
+    // Handle step-by-step form filling
+    async handleStepFormFilling(phoneNumber, messageText, ticketType, currentFormData = {}, currentField = null) {
         try {
-            console.log('🎯 Handling template form completion:', {
+            console.log('🎯 Handling step form filling:', {
                 phoneNumber,
-                formData,
-                ticketType
+                messageText,
+                ticketType,
+                currentField,
+                currentFormData
             });
-            
-            // Create ticket from form data
-            const ticketResult = await this.createTicketFromFormData(phoneNumber, ticketType, formData);
-            
-            if (ticketResult.success) {
-                // Send confirmation message
-                const confirmationMessage = `Ticket ${ticketResult.ticketNumber} Created.`;
-                await this.saveMessage(phoneNumber, confirmationMessage, 'system');
-                
-                // Send confirmation to WhatsApp
-                const whatsappResult = await whatsappService.sendMessage(
-                    whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
-                    confirmationMessage
-                );
-                
-                if (!whatsappResult.success) {
-                    console.error('Failed to send confirmation to WhatsApp:', whatsappResult.error);
+
+            // Get form fields for this ticket type
+            const formFieldsResult = await this.getFormFields(ticketType);
+            if (!formFieldsResult.success || !formFieldsResult.data.length) {
+                return { success: false, error: 'No form fields found for this ticket type.' };
+            }
+
+            const formFields = formFieldsResult.data;
+            const sortedFields = formFields.sort((a, b) => a.display_order - b.display_order);
+
+            // If we have a current field, validate and store the input
+            if (currentField) {
+                const field = sortedFields.find(f => f.field_name === currentField);
+                if (!field) {
+                    return { success: false, error: 'Invalid field specified.' };
                 }
+
+                // Validate the input
+                const validationResult = this.validateFieldInput(messageText, field);
+                if (!validationResult.isValid) {
+                    const errorMessage = `❌ Invalid input for ${field.field_label}.\n\n${validationResult.error}\n\nPlease try again:`;
+                    await this.saveMessage(phoneNumber, errorMessage, 'system');
+                    
+                    return {
+                        success: true,
+                        action: 'field_validation_error',
+                        message: errorMessage,
+                        currentField: currentField,
+                        formData: currentFormData
+                    };
+                }
+
+                // Store the validated input
+                const updatedFormData = { ...currentFormData, [currentField]: messageText.trim() };
                 
-                // Reset conversation state
-                await this.updateConversationState(phoneNumber, 'idle', null, {}, null, 'idle');
+                // Find the next field
+                const currentIndex = sortedFields.findIndex(f => f.field_name === currentField);
+                const nextField = sortedFields[currentIndex + 1];
+
+                if (nextField) {
+                    // Move to next field
+                    const nextMessage = `✅ ${field.field_label}: ${messageText.trim()}\n\nNext: ${nextField.field_label}${nextField.is_required ? ' (required)' : ''}`;
+                    await this.saveMessage(phoneNumber, nextMessage, 'system');
+                    
+                    // Update conversation state with next field
+                    await this.updateConversationState(phoneNumber, 'step_form_filling', ticketType, updatedFormData, nextField.field_name, 'step_form_filling');
+                    
+                    return {
+                        success: true,
+                        action: 'next_field',
+                        message: nextMessage,
+                        currentField: nextField.field_name,
+                        formData: updatedFormData
+                    };
+                } else {
+                    // All fields completed, create ticket
+                    const ticketResult = await this.createTicketFromFormData(phoneNumber, ticketType, updatedFormData);
+                    
+                    if (ticketResult.success) {
+                        const successMessage = `✅ ${field.field_label}: ${messageText.trim()}\n\n🎉 All information collected!\n\nTicket ${ticketResult.ticket.ticket_number} has been created successfully.`;
+                        await this.saveMessage(phoneNumber, successMessage, 'system');
+                        
+                        // Clear conversation state
+                        await this.clearConversationState(phoneNumber);
+                        
+                        return {
+                            success: true,
+                            action: 'ticket_created',
+                            ticket: ticketResult.ticket,
+                            message: successMessage
+                        };
+                    } else {
+                        const errorMessage = `❌ Failed to create ticket: ${ticketResult.error}\n\nPlease try again by selecting a ticket type.`;
+                        await this.saveMessage(phoneNumber, errorMessage, 'system');
+                        await this.clearConversationState(phoneNumber);
+                        
+                        return {
+                            success: false,
+                            error: errorMessage
+                        };
+                    }
+                }
+            } else {
+                // No current field, start from beginning
+                const firstField = sortedFields[0];
+                const message = `Please provide: ${firstField.field_label}${firstField.is_required ? ' (required)' : ''}`;
+                await this.saveMessage(phoneNumber, message, 'system');
+                
+                await this.updateConversationState(phoneNumber, 'step_form_filling', ticketType, {}, firstField.field_name, 'step_form_filling');
                 
                 return {
                     success: true,
-                    action: 'ticket_created',
-                    ticketNumber: ticketResult.ticketNumber,
-                    message: confirmationMessage,
-                    whatsappSent: whatsappResult.success
-                };
-            } else {
-                return {
-                    success: false,
-                    error: ticketResult.error
+                    action: 'start_form',
+                    message: message,
+                    currentField: firstField.field_name,
+                    formData: {}
                 };
             }
         } catch (error) {
-            console.error('Error handling template form completion:', error);
+            console.error('Error handling step form filling:', error);
             return { success: false, error: error.message };
         }
     }
 
-    // Handle form filling
-    async handleFormFilling(phoneNumber, messageText, ticketType, currentFormData = {}) {
-        try {
-            // Check if this is the end of form input
-            if (messageText.includes('/input_end')) {
-                // Process all form data
-                const ticketResult = await this.createTicketFromFormData(phoneNumber, ticketType, currentFormData);
-                
-                if (ticketResult.success) {
-                    const message = `Ticket ${ticketResult.ticket.ticket_number} Created.`;
-                    await this.saveMessage(phoneNumber, message, 'system');
-                    await this.clearConversationState(phoneNumber);
-                    
-                    return {
-                        success: true,
-                        action: 'ticket_created',
-                        ticket: ticketResult.ticket,
-                        message: message
-                    };
-                } else {
-                    return {
-                        success: false,
-                        error: 'Failed to create ticket. Please try again.'
-                    };
-                }
-            } else {
-                // Parse comma-separated form data
-                const formFieldsResult = await this.getFormFields(ticketType);
-                if (!formFieldsResult.success || !formFieldsResult.data.length) {
-                    return { success: false, error: 'No form fields found for this ticket type.' };
-                }
-                
-                const formFields = formFieldsResult.data;
-                const inputValues = messageText.split(',').map(field => field.trim());
-                
-                // Map input values to form fields
-                const updatedFormData = { ...currentFormData };
-                formFields.forEach((field, index) => {
-                    if (inputValues[index]) {
-                        updatedFormData[field.field_name] = inputValues[index];
-                    }
-                });
-                
-                // Save the updated form data
-                await this.updateConversationState(phoneNumber, 'form_filling', ticketType, updatedFormData, null, 'form_filling');
-                
-                // Check if all required fields are filled
-                const requiredFields = formFields.filter(field => field.is_required);
-                const filledRequiredFields = requiredFields.filter(field => updatedFormData[field.field_name]);
-                
-                if (filledRequiredFields.length === requiredFields.length) {
-                    // All required fields are filled, ask for confirmation or auto-submit
-                    const message = "All required information has been provided. Type '/input_end' to create the ticket.";
-                    await this.saveMessage(phoneNumber, message, 'system');
-                    
-                    return {
-                        success: true,
-                        action: 'ready_to_submit',
-                        formData: updatedFormData,
-                        message: message
-                    };
-                } else {
-                    // Still missing some fields
-                    const missingFields = requiredFields.filter(field => !updatedFormData[field.field_name]);
-                    const message = `Please provide the following missing information: ${missingFields.map(f => f.field_label).join(', ')}`;
-                    await this.saveMessage(phoneNumber, message, 'system');
-                    
-                    return {
-                        success: true,
-                        action: 'continue_form_filling',
-                        formData: updatedFormData,
-                        message: message
-                    };
-                }
-            }
-        } catch (error) {
-            console.error('Error handling form filling:', error);
-            return { success: false, error: error.message };
+    // Validate field input based on field type and validation rules
+    validateFieldInput(input, field) {
+        const trimmedInput = input.trim();
+        
+        // Check if required field is empty
+        if (field.is_required && !trimmedInput) {
+            return {
+                isValid: false,
+                error: `${field.field_label} is required and cannot be empty.`
+            };
         }
+
+        // If field is not required and empty, it's valid
+        if (!field.is_required && !trimmedInput) {
+            return { isValid: true };
+        }
+
+        // Parse validation rules
+        let validationRules = {};
+        try {
+            if (field.validation_rules) {
+                validationRules = typeof field.validation_rules === 'string' 
+                    ? JSON.parse(field.validation_rules) 
+                    : field.validation_rules;
+            }
+        } catch (e) {
+            console.warn('Invalid validation rules for field:', field.field_name);
+        }
+
+        // Validate based on field type
+        switch (field.field_type) {
+            case 'number':
+                const numValue = parseFloat(trimmedInput);
+                if (isNaN(numValue)) {
+                    return {
+                        isValid: false,
+                        error: `${field.field_label} must be a valid number.`
+                    };
+                }
+                if (validationRules.min !== undefined && numValue < validationRules.min) {
+                    return {
+                        isValid: false,
+                        error: `${field.field_label} must be at least ${validationRules.min}.`
+                    };
+                }
+                if (validationRules.max !== undefined && numValue > validationRules.max) {
+                    return {
+                        isValid: false,
+                        error: `${field.field_label} must be at most ${validationRules.max}.`
+                    };
+                }
+                break;
+
+            case 'text':
+                if (validationRules.max_length && trimmedInput.length > validationRules.max_length) {
+                    return {
+                        isValid: false,
+                        error: `${field.field_label} must be ${validationRules.max_length} characters or less.`
+                    };
+                }
+                if (validationRules.min_length && trimmedInput.length < validationRules.min_length) {
+                    return {
+                        isValid: false,
+                        error: `${field.field_label} must be at least ${validationRules.min_length} characters.`
+                    };
+                }
+                break;
+
+            case 'date':
+                const dateValue = new Date(trimmedInput);
+                if (isNaN(dateValue.getTime())) {
+                    return {
+                        isValid: false,
+                        error: `${field.field_label} must be a valid date (YYYY-MM-DD format).`
+                    };
+                }
+                break;
+
+            case 'time':
+                const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                if (!timeRegex.test(trimmedInput)) {
+                    return {
+                        isValid: false,
+                        error: `${field.field_label} must be a valid time (HH:MM format).`
+                    };
+                }
+                break;
+
+            case 'select':
+                // For select fields, you might want to validate against predefined options
+                // This is a basic implementation
+                break;
+        }
+
+        return { isValid: true };
     }
 
     // Build form fields message
