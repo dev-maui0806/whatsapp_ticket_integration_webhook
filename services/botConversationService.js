@@ -615,7 +615,8 @@ class BotConversationService {
                     await this.saveMessage(phoneNumber, systemMessage, 'system');
                     
                     // Update conversation state to wait for template completion
-                    // await this.updateConversationState(phoneNumber, 'template_form_filling', selectedType.id, {}, null, 'template_form_filling');
+                    
+                    await this.updateConversationState(phoneNumber, 'template_form_filling', selectedType.id, {}, null, 'template_form_filling');
                     
                     return {
                         success: true,
