@@ -285,38 +285,14 @@ router.post('/', async (req, res) => {
                 continue;
             }
 
-            // Handle step-by-step form filling state
-            if (currentState.automationChatState === 'step_form_filling') {
-                const stepResult = await botConversationService.handleStepFormFilling(
-                    phoneNumber,
-                    messageText,
-                    currentState.ticketType,
-                    currentState.formData || {},
-                    currentState.currentField
-                );
-                
-                if (stepResult.success) {
-                    // Message is already sent by handleStepFormFilling
-                    broadcastToDashboard(req, phoneNumber, stepResult.message, 'system');
-                    
-                    // If ticket was created, broadcast the success message
-                    if (stepResult.action === 'ticket_created') {
-                        broadcastToDashboard(req, phoneNumber, `🎉 Ticket ${stepResult.ticket.ticket_number} created successfully!`, 'system');
-                    }
-                } else {
-                    await sendWhatsappMessage(phoneNumber, stepResult.error);
-                }
-                continue;
-            }
 
-            // Handle form filling state
+            // Handle form filling state (comma-separated input)
             if (currentState.automationChatState === 'form_filling') {
                 const formResult = await botConversationService.handleFormFilling(
                     phoneNumber, 
                     messageText, 
                     currentState.ticketType, 
-                    currentState.formData,
-                    interactiveId
+                    currentState.formData
                 );
                 
                 if (formResult.success) {
@@ -471,42 +447,6 @@ router.get('/webhook-logs', async (req, res) => {
     }
 });
 
-// Helper function to extract form data from WhatsApp template completion
-function extractFormDataFromMessage(messageText, ticketType) {
-    // This is a placeholder - in real implementation, WhatsApp would send structured data
-    // For now, we'll create sample data based on ticket type
-    const formDataMap = {
-        'lock_open': {
-            vehicle_number: 'Sample Vehicle',
-            driver_number: 'Sample Driver',
-            location: 'Sample Location',
-            comment: 'Sample Comment'
-        },
-        'lock_repair': {
-            vehicle_number: 'Sample Vehicle',
-            driver_number: 'Sample Driver', 
-            location: 'Sample Location',
-            availability_date: '2024-01-01',
-            availability_time: '10:00',
-            comment: 'Sample Comment'
-        },
-        'fund_request': {
-            amount: '1000',
-            upi_id: 'sample@upi',
-            comment: 'Sample Comment'
-        },
-        'fuel_request': {
-            vehicle_number: 'Sample Vehicle',
-            fuel_type: 'Petrol',
-            quantity: '50',
-            amount: '5000',
-            location: 'Sample Location',
-            comment: 'Sample Comment'
-        }
-    };
-    
-    return formDataMap[ticketType] || {};
-}
 
 // Health check endpoint
 router.get('/health', (req, res) => {
