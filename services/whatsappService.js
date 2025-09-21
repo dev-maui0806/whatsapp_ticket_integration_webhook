@@ -86,7 +86,7 @@ class WhatsAppService {
 
             // Build template payload - only include components if they exist and are valid
             const templatePayload = {
-                "name": "test_template",
+                "name": "utility_templete",
                 "language": {
                     "code": languageCode
                 }
