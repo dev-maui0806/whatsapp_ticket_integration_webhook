@@ -98,11 +98,7 @@ class WhatsAppService {
                         "parameters": [
                             {
                                 "type": "flow",
-                                "flow": {
-                                    "name": "message_templates_UTILITY_d3c49ced-c",
-                                    "id": "829939159924186",
-                                    "action": "navigate"
-                                }
+                                "flow_id": "829939159924186"   // 👈 use your numeric Flow ID here
                             }
                         ]
                     }
