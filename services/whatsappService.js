@@ -93,9 +93,9 @@ class WhatsAppService {
             }
 
             // Only add components if they are provided and not empty
-            if (components && components.length > 0) {
-                templatePayload.components = components;
-            }
+            // if (components && components.length > 0) {
+            //     templatePayload.components = components;
+            // }
 
             const payload = {
                 messaging_product: "whatsapp",
