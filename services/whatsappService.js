@@ -86,23 +86,10 @@ class WhatsAppService {
 
             // Build template payload - only include components if they exist and are valid
             const templatePayload = {
-                "name": "utility_templete",
+                "name": "test_template",
                 "language": {
                     "code": languageCode
-                },
-                "components": [
-                    {
-                        "type": "button",
-                        "sub_type": "flow",
-                        "index": "0",
-                        "parameters": [
-                            {
-                                "type": "flow",
-                                "flow_id": "829939159924186"   // 👈 use your numeric Flow ID here
-                            }
-                        ]
-                    }
-                ]
+                }
             }
 
             // Only add components if they are provided and not empty
