@@ -28,7 +28,7 @@ class WhatsAppService {
             if (!toNumber) {
                 return { success: false, error: 'Invalid phone number' };
             }
-           
+
             const payload = {
                 messaging_product: "whatsapp",
                 to: toNumber,
@@ -83,13 +83,30 @@ class WhatsAppService {
                 console.log("************failed_toNumber****************")
                 return { success: false, error: 'Invalid phone number' };
             }
-            
+
             // Build template payload - only include components if they exist and are valid
             const templatePayload = {
-                name:"utility_templete",
-                language: {
-                    code: languageCode
+                "name": "utility_templete",
+                "language": {
+                    "code": languageCode
                 },
+                "components": [
+                    {
+                        "type": "button",
+                        "sub_type": "flow",
+                        "index": "0",
+                        "parameters": [
+                            {
+                                "type": "flow",
+                                "flow": {
+                                    "name": "message_templates_UTILITY_d3c49ced-c",
+                                    "id": "829939159924186",
+                                    "action": "navigate"
+                                }
+                            }
+                        ]
+                    }
+                ]
             }
 
             // Only add components if they are provided and not empty
@@ -140,7 +157,7 @@ class WhatsAppService {
                 buttonText,
                 sections
             });
-            
+
             // Guard: align with text sender (enabled by default unless creds missing)
             const liveEnabled = "true";
             if (!liveEnabled) {
@@ -212,7 +229,7 @@ class WhatsAppService {
     //             phoneNumber,
     //             templateName
     //         });
-            
+
     //         // Guard: align with text sender (enabled by default unless creds missing)
     //         const liveEnabled = "true";
     //         if (!liveEnabled) {
@@ -225,7 +242,7 @@ class WhatsAppService {
     //             console.log('⚠️ Missing WhatsApp credentials, mocking send');
     //             return { success: true, mocked: true };
     //         }
-            
+
     //         const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
     //         const toNumber = this.formatPhoneNumber(phoneNumber) || (phoneNumber && phoneNumber.toString()) || '';
     //         if (!toNumber) {
@@ -345,7 +362,7 @@ class WhatsAppService {
     // async sendListMessage(phoneNumber, headerText, bodyText, footerText, buttonText, sections) {
     //     try {
     //         const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
-            
+
     //         const payload = {
     //             messaging_product: "whatsapp",
     //             to: phoneNumber,
