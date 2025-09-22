@@ -303,6 +303,20 @@ router.post('/', async (req, res) => {
                     if (formResult.action === 'ticket_created') {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
+                        try {
+                            const socketService = req.app.get('socketService');
+                            if (socketService && formResult.ticket) {
+                                // Notify agents a new ticket was created
+                                socketService.broadcastToAgents('ticketCreated', { ticket: formResult.ticket });
+                                // Update per-customer and global stats
+                                if (formResult.ticket.customer_id) {
+                                    await socketService.broadcastCustomerStats(formResult.ticket.customer_id);
+                                }
+                                await socketService.broadcastDashboardStats();
+                            }
+                        } catch (e) {
+                            console.warn('Socket broadcast failed (ticket_created):', e.message);
+                        }
                     } else if (formResult.message) {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
