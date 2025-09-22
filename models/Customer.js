@@ -165,9 +165,9 @@ class Customer {
                 c.phone_number,
                 c.name,
                 c.created_at,
-                COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer', closed) THEN t.id END) as total_tickets,
+                COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer', 'closed') THEN t.id END) as total_tickets,
                 COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer') THEN t.id END) as open_tickets,
-                COUNT(DISTINCT CASE WHEN t.status IN ('in_progress', ) THEN t.id END) as in_progress_tickets,
+                COUNT(DISTINCT CASE WHEN t.status IN ('in_progress') THEN t.id END) as in_progress_tickets,
                 COUNT(DISTINCT CASE WHEN t.status IN ('closed') THEN t.id END) as closed_tickets,
                 COUNT(DISTINCT CASE WHEN m.sender_type = 'customer' AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN m.id END) as pending_chats
             FROM customers c
