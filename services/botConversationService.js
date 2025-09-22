@@ -296,7 +296,7 @@ class BotConversationService {
             if (!openTicketsResult.success) {
                 return { success: false, error: 'Failed to get open tickets' };
             }
-            
+            console.log("***************OPENTICKETSRESULT****************", openTicketsResult.data)
             const openTickets = openTicketsResult.data || [];
             
             if (openTickets.length > 0) {

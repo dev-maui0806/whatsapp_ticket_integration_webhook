@@ -137,6 +137,7 @@ router.post('/', async (req, res) => {
             console.log("**************Current state:*****************", stateResult);
             
             if (!stateResult.success) {
+                console.log("sartResult*********", startResult)
                 console.error('Failed to get conversation state:', stateResult.error);
                 // Continue processing with null state instead of skipping
                 const currentState = null;
@@ -155,9 +156,11 @@ router.post('/', async (req, res) => {
 
             // Handle /start command or greeting_start button
             if (messageText.toLowerCase().trim() === '/start') {
+                console.log("**********openticketstart******", phoneNumber)
                 const startResult = await botConversationService.handleStartCommand(phoneNumber);
                 if (startResult.success) {
-                    // For interactive menus, startResult.message may be empty because buttons were sent.
+                    console.log("(**************staratresultsuccess", startResult);    
+                // For interactive menus, startResult.message may be empty because buttons were sent.
                     if (startResult.message) {
                         await sendWhatsappMessage(phoneNumber, startResult.message);
                         broadcastToDashboard(req, phoneNumber, startResult.message, 'system');
