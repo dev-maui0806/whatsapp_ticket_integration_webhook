@@ -210,7 +210,7 @@ router.post('/', async (req, res) => {
                     );
                     
                     if (selectionResult.success) {
-                        // await sendWhatsappMessage(phoneNumber, selectionResult.message);
+                       if(!selectionResult.interactiveSent) await sendWhatsappMessage(phoneNumber, selectionResult.message);
                         broadcastToDashboard(req, phoneNumber, selectionResult.message, 'system');
                     } else {
                         await sendWhatsappMessage(phoneNumber, selectionResult.error);
