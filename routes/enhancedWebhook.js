@@ -236,7 +236,7 @@ router.post('/', async (req, res) => {
                     // If customer wants to chat with agent, notify agents
                     if (chatRequestResult.action === 'start_agent_chat') {
                         try {
-                            const socketService = require('../server')?.socketService || globalThis.socketService || null;
+                            const socketService = req.app.get('socketService');
                             if (socketService) {
                                 const ticket = await Ticket.findById(currentState.currentTicketId);
                                 if (ticket) {
@@ -303,19 +303,19 @@ router.post('/', async (req, res) => {
                     if (formResult.action === 'ticket_created') {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
+
+                        // Realtime: broadcast updated stats and ticket create event
                         try {
-                            const socketService = req.app.get('socketService');
+                            const socketService = require('../server')?.socketService || globalThis.socketService || null;
                             if (socketService && formResult.ticket) {
-                                // Notify agents a new ticket was created
                                 socketService.broadcastToAgents('ticketCreated', { ticket: formResult.ticket });
-                                // Update per-customer and global stats
                                 if (formResult.ticket.customer_id) {
                                     await socketService.broadcastCustomerStats(formResult.ticket.customer_id);
                                 }
                                 await socketService.broadcastDashboardStats();
                             }
                         } catch (e) {
-                            console.warn('Socket broadcast failed (ticket_created):', e.message);
+                            console.warn('Socket broadcast (ticket_created) failed:', e.message);
                         }
                     } else if (formResult.message) {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
@@ -366,6 +366,9 @@ router.post('/', async (req, res) => {
                                 },
                                 customer: { phone_number: phoneNumber }
                             });
+
+                            // Realtime: pending chat counts and stats update
+                            await socketService.broadcastCustomerStats(ticket.customer_id);
                         }
                     }
                 } catch (e) {
