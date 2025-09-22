@@ -562,7 +562,7 @@ class BotConversationService {
         }
     }
 
-    // Handle ticket type selection
+    // Handle ticket type selection - show all fields at once
     async handleTicketTypeSelection(phoneNumber, messageText) {
         try {
             console.log("***********handleTicketTypeSelection***************", phoneNumber, messageText)
@@ -577,70 +577,19 @@ class BotConversationService {
             if (selection >= 1 && selection <= this.ticketTypes.length) {
                 const selectedType = this.ticketTypes[selection - 1];
                 
-                // Map ticket types to template names
-                const templateMap = {
-                    'lock_open': 'create_ticket_lock_open',
-                    'lock_repair': 'create_ticket_lock_repair', 
-                    'fund_request': 'create_fund_request_ticket',
-                    'fuel_request': 'create_ticket_fuel_request',
+                // Build and send ticket card with all fields
+                const message = await this.buildFormFieldsMessage(selectedType.id);
+                await this.saveMessage(phoneNumber, message, 'system');
+                
+                // Update conversation state to form filling
+                await this.updateConversationState(phoneNumber, 'form_filling', selectedType.id, {}, null, 'form_filling');
+                
+                return {
+                    success: true,
+                    ticketType: selectedType.id,
+                    message: message,
+                    interactiveSent: false
                 };
-                
-                const templateName = templateMap[selectedType.id];
-                
-                if (templateName) {
-                    // Send WhatsApp template message
-                    console.log('🚀 Sending template message:', templateName);
-                    const whatsappResult = await whatsappService.sendTemplateMessage(
-                        whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
-                        templateName
-                    );
-                    
-                    if (!whatsappResult.success) {
-                        console.error('Failed to send template message:', whatsappResult.error);
-                        // Fallback to plain text message if template fails
-                        const fallbackMessage = `Please provide the following information for ${selectedType.label}:\n\nPlease fill out the form and submit your request.`;
-                        await this.saveMessage(phoneNumber, fallbackMessage, 'system');
-                        
-                        return { 
-                            success: true, 
-                            ticketType: selectedType.id,
-                            message: fallbackMessage,
-                            interactiveSent: false,
-                            fallback: true
-                        };
-                    }
-                    
-                    // Save system message for dashboard (plain text format)
-                    const systemMessage = `Please provide the following information for ${selectedType.label}:`;
-                    await this.saveMessage(phoneNumber, systemMessage, 'system');
-                    
-                    // Update conversation state to wait for template completion
-                    await this.updateConversationState(phoneNumber, 'template_form_filling', selectedType.id, {}, null, 'template_form_filling');
-                    
-                    return {
-                        success: true,
-                        ticketType: selectedType.id,
-                        templateName: templateName,
-                        message: systemMessage,
-                        interactiveSent: true
-                    };
-                } else {
-                    // Fallback to old method for 'other' type
-                    const message = await this.buildFormFieldsMessage(selectedType.id);
-                    await this.saveMessage(phoneNumber, message, 'system');
-                    await this.updateConversationState(phoneNumber, 'form_filling', selectedType.id, {}, null, 'form_filling');
-                    await this.sendButtons(phoneNumber, 'Enter details', 'Reply with values separated by commas in one message.', 'When ready, press Submit', [
-                        { id: 'form_submit', title: 'Submit' },
-                        { id: 'form_reenter', title: 'Re-enter details' }
-                    ]);
-                    
-                    return {
-                        success: true,
-                        ticketType: selectedType.id,
-                        message: message,
-                        interactiveSent: true
-                    };
-                }
             } else {
                 return {
                     success: false,
@@ -653,64 +602,18 @@ class BotConversationService {
         }
     }
 
-    // Handle template form completion (when Complete button is pressed)
-    async handleTemplateFormCompletion(phoneNumber, formData, ticketType) {
-        try {
-            console.log('🎯 Handling template form completion:', {
-                phoneNumber,
-                formData,
-                ticketType
-            });
-            
-            // Create ticket from form data
-            const ticketResult = await this.createTicketFromFormData(phoneNumber, ticketType, formData);
-            
-            if (ticketResult.success) {
-                // Send confirmation message
-                const confirmationMessage = `Ticket ${ticketResult.ticketNumber} Created.`;
-                await this.saveMessage(phoneNumber, confirmationMessage, 'system');
-                
-                // Send confirmation to WhatsApp
-                const whatsappResult = await whatsappService.sendMessage(
-                    whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
-                    confirmationMessage
-                );
-                
-                if (!whatsappResult.success) {
-                    console.error('Failed to send confirmation to WhatsApp:', whatsappResult.error);
-                }
-                
-                // Reset conversation state
-                await this.updateConversationState(phoneNumber, 'idle', null, {}, null, 'idle');
-                
-                return {
-                    success: true,
-                    action: 'ticket_created',
-                    ticketNumber: ticketResult.ticketNumber,
-                    message: confirmationMessage,
-                    whatsappSent: whatsappResult.success
-                };
-            } else {
-                return {
-                    success: false,
-                    error: ticketResult.error
-                };
-            }
-        } catch (error) {
-            console.error('Error handling template form completion:', error);
-            return { success: false, error: error.message };
-        }
-    }
 
-    // Handle comma-separated form filling (original logic)
-    async handleFormFilling(phoneNumber, messageText, ticketType, currentFormData = {}) {
+    // Handle plain text comma-separated form filling
+    async handleFormFilling(phoneNumber, messageText, ticketType, currentFormData = {}, interactiveId = null) {
         try {
-            console.log(`[handleFormFilling] Processing comma-separated input: ${messageText}`);
+            console.log(`[handleFormFilling] Processing comma-separated input: ${messageText} for ticket type: ${ticketType}`);
             
             // Get form fields for the ticket type
             const formFieldsResult = await this.getFormFields(ticketType);
             if (!formFieldsResult.success || !formFieldsResult.data.length) {
-                return { success: false, error: 'No form fields found for this ticket type.' };
+                const errorMsg = 'No form fields found for this ticket type.';
+                await this.saveMessage(phoneNumber, errorMsg, 'system');
+                return { success: false, error: errorMsg };
             }
             
             const formFields = formFieldsResult.data;
@@ -720,12 +623,12 @@ class BotConversationService {
             const requiredFields = formFields.filter(field => field.is_required);
             if (inputValues.length < requiredFields.length) {
                 const fieldLabels = requiredFields.map(field => field.field_label).join(', ');
-                const message = `❌ Please provide all required fields separated by commas.\n\nRequired: ${fieldLabels}\n\nFormat: value1, value2, value3...`;
-                await this.saveMessage(phoneNumber, message, 'system');
+                const errorMsg = `❌ Please provide all required fields separated by commas.\n\nRequired: ${fieldLabels}\n\nFormat: value1, value2, value3...`;
+                await this.saveMessage(phoneNumber, errorMsg, 'system');
                 return { success: true, message: 'Insufficient fields provided' };
             }
             
-            // Map input values to form fields
+            // Map input values to form fields and validate
             const formData = {};
             let validationErrors = [];
             
@@ -750,8 +653,8 @@ class BotConversationService {
             
             // Check for validation errors
             if (validationErrors.length > 0) {
-                const message = `❌ Please correct the following errors:\n\n${validationErrors.join('\n')}\n\nPlease provide all fields again in the correct format.`;
-                await this.saveMessage(phoneNumber, message, 'system');
+                const errorMsg = `❌ Please correct the following errors:\n\n${validationErrors.join('\n')}\n\nPlease provide all fields again in the correct format.`;
+                await this.saveMessage(phoneNumber, errorMsg, 'system');
                 return { success: true, message: 'Validation errors found' };
             }
             
@@ -759,24 +662,26 @@ class BotConversationService {
             const ticketResult = await this.createTicketFromFormData(phoneNumber, ticketType, formData);
             
             if (ticketResult.success) {
-                const message = `✅ Ticket ${ticketResult.ticket.ticket_number} has been created successfully!`;
-                await this.saveMessage(phoneNumber, message, 'system');
+                const successMsg = `✅ Ticket ${ticketResult.ticket.ticket_number} has been created successfully!`;
+                await this.saveMessage(phoneNumber, successMsg, 'system');
                 await this.clearConversationState(phoneNumber);
                 
                 return {
                     success: true,
                     action: 'ticket_created',
                     ticket: ticketResult.ticket,
-                    message: message
+                    message: successMsg
                 };
             } else {
-                const errorMessage = `❌ Failed to create ticket: ${ticketResult.error}\n\nPlease try again.`;
-                await this.saveMessage(phoneNumber, errorMessage, 'system');
+                const errorMsg = `❌ Failed to create ticket: ${ticketResult.error}\n\nPlease try again.`;
+                await this.saveMessage(phoneNumber, errorMsg, 'system');
                 return { success: false, error: ticketResult.error };
             }
             
         } catch (error) {
             console.error('Error in handleFormFilling:', error);
+            const errorMsg = 'An error occurred while processing your request. Please try again.';
+            await this.saveMessage(phoneNumber, errorMsg, 'system');
             return { success: false, error: error.message };
         }
     }
