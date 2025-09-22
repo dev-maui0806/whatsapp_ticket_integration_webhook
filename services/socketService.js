@@ -1179,10 +1179,10 @@ class SocketService {
             const { executeQuery } = require('../config/database');
             const statsQuery = `
                 SELECT 
-                    COUNT(*) as total,
-                    SUM(CASE WHEN status IN ('open','in_progress','pending_customer') THEN 1 ELSE 0 END) as open,
-                    SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
-                    SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed
+                    COALESCE(COUNT(*), 0) as total,
+                    COALESCE(SUM(CASE WHEN status IN ('open','in_progress','pending_customer') THEN 1 ELSE 0 END), 0) as open,
+                    COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress,
+                    COALESCE(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0) as closed
                 FROM tickets
             `;
             const res = await executeQuery(statsQuery, []);

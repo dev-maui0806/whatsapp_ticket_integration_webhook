@@ -306,7 +306,7 @@ router.post('/', async (req, res) => {
 
                         // Realtime: broadcast updated stats and ticket create event
                         try {
-                            const socketService = require('../server')?.socketService || globalThis.socketService || null;
+                            const socketService = req.app.get('socketService');
                             if (socketService && formResult.ticket) {
                                 socketService.broadcastToAgents('ticketCreated', { ticket: formResult.ticket });
                                 if (formResult.ticket.customer_id) {
@@ -353,7 +353,7 @@ router.post('/', async (req, res) => {
                 
                 // Notify agents
                 try {
-                    const socketService = require('../server')?.socketService || globalThis.socketService || null;
+                    const socketService = req.app.get('socketService');
                     if (socketService) {
                         const ticket = await Ticket.findById(currentState.currentTicketId);
                         if (ticket) {
