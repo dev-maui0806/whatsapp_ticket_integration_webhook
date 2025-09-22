@@ -307,7 +307,24 @@ class WhatsAppService {
             if (!toNumber) {
                 return { success: false, error: 'Invalid phone number' };
             }
-
+            console.log("*****************buttons*****************", buttons)
+            
+            // Validate and truncate button titles to fit WhatsApp's 20 character limit
+            const validatedButtons = buttons.map((button, index) => {
+                let title = button.title;
+                if (title.length > 20) {
+                    console.warn(`Button title too long (${title.length} chars): "${title}". Truncating to 20 characters.`);
+                    title = title.substring(0, 17) + '...';
+                }
+                return {
+                    type: "reply",
+                    reply: {
+                        id: button.id,
+                        title: title
+                    }
+                };
+            });
+            
             const payload = {
                 messaging_product: "whatsapp",
                 to: toNumber,
@@ -325,13 +342,7 @@ class WhatsAppService {
                         text: footerText
                     },
                     action: {
-                        buttons: buttons.map((button, index) => ({
-                            type: "reply",
-                            reply: {
-                                id: button.id,
-                                title: button.title
-                            }
-                        }))
+                        buttons: validatedButtons
                     }
                 }
             };

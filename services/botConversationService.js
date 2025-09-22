@@ -305,7 +305,17 @@ class BotConversationService {
                 const body = 'Select the ticket you want to open or create a new ticket.';
                 const buttons = [{ id: 'start_create', title: 'Create new ticket' }];
                 const top = openTickets.slice(0, 2);
-                top.forEach(t => buttons.push({ id: `start_open_${t.id}`, title: `${t.ticket_number} (${t.issue_type})` }));
+                top.forEach(t => {
+                    // Shorten ticket number and issue type to fit WhatsApp's 20 char limit
+                    const shortTicketNumber = t.ticket_number ? t.ticket_number.replace('TKT-', '').substring(0, 8) : `#${t.id}`;
+                    const shortIssueType = t.issue_type ? t.issue_type.replace('_', ' ').substring(0, 8) : 'ticket';
+                    const buttonTitle = `${shortTicketNumber} (${shortIssueType})`;
+                    
+                    // Ensure title doesn't exceed 20 characters
+                    const finalTitle = buttonTitle.length > 20 ? buttonTitle.substring(0, 17) + '...' : buttonTitle;
+                    
+                    buttons.push({ id: `start_open_${t.id}`, title: finalTitle });
+                });
                 await this.sendButtons(phoneNumber, header, body, 'Select an option below', buttons);
                 await this.updateConversationState(phoneNumber, 'ticket_selection', null, {}, null, 'ticket_selection');
                 return { success: true, interactiveSent: true, hasExistingTickets: true };
