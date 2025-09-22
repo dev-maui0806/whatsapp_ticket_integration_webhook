@@ -795,6 +795,36 @@ class BotConversationService {
         
         return null;
     }
+
+    validateField(fieldName, fieldValue, validationRules) {
+        if (!validationRules) return { isValid: true };
+
+        // Check required
+        if (validationRules.required && (!fieldValue || fieldValue.toString().trim() === '')) {
+            return { isValid: false, error: `${fieldName} is required` };
+        }
+
+        // Check max length
+        if (validationRules.max_length && fieldValue.toString().length > validationRules.max_length) {
+            return { isValid: false, error: `${fieldName} must be less than ${validationRules.max_length} characters` };
+        }
+
+        // Check min/max for numbers
+        if (validationRules.min !== undefined && Number(fieldValue) < validationRules.min) {
+            return { isValid: false, error: `${fieldName} must be at least ${validationRules.min}` };
+        }
+
+        if (validationRules.max !== undefined && Number(fieldValue) > validationRules.max) {
+            return { isValid: false, error: `${fieldName} must be at most ${validationRules.max}` };
+        }
+
+        // Check options for select fields
+        if (validationRules.options && !validationRules.options.includes(fieldValue)) {
+            return { isValid: false, error: `${fieldName} must be one of: ${validationRules.options.join(', ')}` };
+        }
+
+        return { isValid: true };
+    }
 }
 
 module.exports = BotConversationService;
