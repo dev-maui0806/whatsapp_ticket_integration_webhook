@@ -258,6 +258,7 @@ router.get('/:id/messages', async (req, res) => {
 router.patch('/:id/close', async (req, res) => {
     try {
         const ticketId = parseInt(req.params.id);
+        const agentName = req.body.agentName || 'Agent'; // Get agent name from request body
         
         if (isNaN(ticketId)) {
             return res.status(400).json({ error: 'Invalid ticket ID' });
@@ -269,12 +270,44 @@ router.patch('/:id/close', async (req, res) => {
             return res.status(404).json({ error: 'Ticket not found' });
         }
 
+        // Close the ticket
         const result = await ticket.close();
         
         if (result.success) {
+            // Import required services
+            const whatsappService = require('../services/whatsappService');
+            const botConversationService = require('../services/botConversationService');
+            
+            // Send WhatsApp notification to customer
+            const notificationMessage = `This ticket ${ticket.ticket_number} has been closed by agent ${agentName}.`;
+            try {
+                await whatsappService.sendMessage(ticket.phone_number, notificationMessage);
+                console.log(`WhatsApp notification sent to ${ticket.phone_number}: ${notificationMessage}`);
+            } catch (whatsappError) {
+                console.error('Failed to send WhatsApp notification:', whatsappError);
+                // Don't fail the ticket closing if WhatsApp notification fails
+            }
+            
+            // Update conversation state to CLOSE if there's an active conversation
+            try {
+                await botConversationService.updateConversationState(
+                    ticket.phone_number, 
+                    'CLOSE', 
+                    null, 
+                    {}, 
+                    ticketId, 
+                    'null'
+                );
+                console.log(`Conversation state updated to CLOSE for phone ${ticket.phone_number}`);
+            } catch (conversationError) {
+                console.error('Failed to update conversation state:', conversationError);
+                // Don't fail the ticket closing if conversation state update fails
+            }
+            
             res.status(200).json({
                 success: true,
-                data: await Ticket.findById(ticketId)
+                data: await Ticket.findById(ticketId),
+                message: 'Ticket closed successfully with notifications sent'
             });
         } else {
             res.status(500).json({ error: result.error });
