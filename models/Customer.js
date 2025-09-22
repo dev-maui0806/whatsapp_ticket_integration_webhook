@@ -101,7 +101,7 @@ class Customer {
             SELECT t.*, u.name as assigned_agent_name
             FROM tickets t
             LEFT JOIN users u ON t.assigned_agent_id = u.id
-            WHERE t.customer_id = ? AND t.status = ?
+            WHERE t.customer_id = ?
         `;
         
         const params = [this.id];

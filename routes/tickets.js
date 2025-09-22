@@ -70,12 +70,11 @@ router.get('/customer/:phoneNumber', async (req, res) => {
         const phoneNumber = req.params.phoneNumber;
         
         const customer = await Customer.findByPhone(phoneNumber);
-        const status = "open"
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        const tickets = await customer.getTickets(status);
+        const tickets = await customer.getTickets();
         
         res.status(200).json({
             success: true,
