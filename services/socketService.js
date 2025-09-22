@@ -1140,61 +1140,6 @@ class SocketService {
         this.io.to('agents').emit(event, data);
     }
 
-    // Broadcast updated stats for a specific customer to all agents
-    async broadcastCustomerStats(customerId) {
-        try {
-            const Customer = require('../models/Customer');
-            // Fetch single customer with stats
-            const query = `
-                SELECT 
-                    c.id,
-                    c.phone_number,
-                    c.name,
-                    c.created_at,
-                    COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer', 'closed') THEN t.id END) as total_tickets,
-                    COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer') THEN t.id END) as open_tickets,
-                    COUNT(DISTINCT CASE WHEN t.status IN ('in_progress') THEN t.id END) as in_progress_tickets,
-                    COUNT(DISTINCT CASE WHEN t.status IN ('closed') THEN t.id END) as closed_tickets,
-                    COUNT(DISTINCT CASE WHEN m.sender_type = 'customer' AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN m.id END) as pending_chats
-                FROM customers c
-                LEFT JOIN tickets t ON c.id = t.customer_id
-                LEFT JOIN messages m ON c.phone_number = m.phone_number
-                WHERE c.id = ?
-                GROUP BY c.id, c.phone_number, c.name, c.created_at
-                LIMIT 1
-            `;
-            const { executeQuery } = require('../config/database');
-            const res = await executeQuery(query, [customerId]);
-            if (res.success && res.data.length > 0) {
-                console.log(customerId, "customerUpdated", res.data[0])
-                this.broadcastToAgents('customerUpdated', res.data[0]);
-            }
-        } catch (e) {
-            console.warn('broadcastCustomerStats failed:', e.message);
-        }
-    }
-
-    // Broadcast global aggregated stats for dashboard header
-    async broadcastDashboardStats() {
-        try {
-            const { executeQuery } = require('../config/database');
-            const statsQuery = `
-                SELECT 
-                    COALESCE(COUNT(*), 0) as total,
-                    COALESCE(SUM(CASE WHEN status IN ('open','in_progress','pending_customer') THEN 1 ELSE 0 END), 0) as open,
-                    COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress,
-                    COALESCE(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0) as closed
-                FROM tickets
-            `;
-            const res = await executeQuery(statsQuery, []);
-            if (res.success && res.data.length > 0) {
-                this.broadcastToAgents('dashboardStats', res.data[0]);
-            }
-        } catch (e) {
-            console.warn('broadcastDashboardStats failed:', e.message);
-        }
-    }
-
     // Send to specific customer
     sendToCustomer(customerId, event, data) {
         this.io.to(`customer_${customerId}`).emit(event, data);

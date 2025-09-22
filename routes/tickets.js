@@ -368,28 +368,6 @@ router.patch('/:id/close', async (req, res) => {
             
             // Get updated ticket data
             const updatedTicket = await Ticket.findById(ticketId);
-
-            // Broadcast socket events to agents for realtime dashboards
-            try {
-                const socketService = req.app.get('socketService');
-                if (socketService) {
-                    // Notify all agents a ticket has been updated/closed
-                    socketService.broadcastToAgents('ticketUpdated', { ticket: updatedTicket });
-                    socketService.broadcastToAgents('agentActionCompleted', {
-                        action: 'close',
-                        ticket: updatedTicket,
-                        agentId: req.body?.agent_id || null
-                    });
-
-                    // Refresh per-customer stats and global dashboard stats
-                    if (updatedTicket && updatedTicket.customer_id) {
-                        await socketService.broadcastCustomerStats(updatedTicket.customer_id);
-                    }
-                    await socketService.broadcastDashboardStats();
-                }
-            } catch (e) {
-                console.warn('⚠️ Socket broadcast failed (close):', e.message);
-            }
             
             res.status(200).json({
                 success: true,

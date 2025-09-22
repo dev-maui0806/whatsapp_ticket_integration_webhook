@@ -303,22 +303,6 @@ router.post('/', async (req, res) => {
                     if (formResult.action === 'ticket_created') {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
-
-                        // Realtime: broadcast updated stats and ticket create event
-                        try {
-                            console.log("**************formResult*************", formResult)
-                            const socketService = req.app.get('socketService');
-                            if (socketService && formResult.ticket) {
-                                console.log("##########socketService#############", formResult.ticket)
-                                socketService.broadcastToAgents('ticketCreated', { ticket: formResult.ticket });
-                                if (formResult.ticket.customer_id) {
-                                    await socketService.broadcastCustomerStats(formResult.ticket.customer_id);
-                                }
-                                await socketService.broadcastDashboardStats();
-                            }
-                        } catch (e) {
-                            console.warn('Socket broadcast (ticket_created) failed:', e.message);
-                        }
                     } else if (formResult.message) {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
@@ -368,9 +352,6 @@ router.post('/', async (req, res) => {
                                 },
                                 customer: { phone_number: phoneNumber }
                             });
-
-                            // Realtime: pending chat counts and stats update
-                            await socketService.broadcastCustomerStats(ticket.customer_id);
                         }
                     }
                 } catch (e) {
