@@ -2,7 +2,6 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const WhatsAppService = require('../services/whatsappService');
-// const SocketService = require('../services/socketService');
 const BotConversationService = require('../services/botConversationService');
 const Message = require('../models/Message');
 const Customer = require('../models/Customer');
@@ -12,7 +11,7 @@ const { executeQuery } = require('../config/database');
 // Initialize services
 const whatsappService = new WhatsAppService();
 const botConversationService = new BotConversationService();
-// const socketService = new SocketService();
+
 // Helper: Broadcast message to dashboard
 function broadcastToDashboard(req, phoneNumber, message, senderType = 'system') {
     try {
@@ -304,22 +303,6 @@ router.post('/', async (req, res) => {
                     if (formResult.action === 'ticket_created') {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
-
-                        // Realtime updates for dashboard via socket
-                        try {
-                            const socketService = require('../server')?.socketService || globalThis.socketService || null;
-                            if (socketService && formResult.ticket) {
-                                // Notify agents a new ticket was created
-                                socketService.broadcastToAgents('ticketCreated', { ticket: formResult.ticket });
-                                // Update per-customer and global stats
-                                if (formResult.ticket.customer_id) {
-                                    await socketService.broadcastCustomerStats(formResult.ticket.customer_id);
-                                }
-                                await socketService.broadcastDashboardStats();
-                            }
-                        } catch (e) {
-                            console.warn('Socket broadcast failed (ticket_created):', e.message);
-                        }
                     } else if (formResult.message) {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
@@ -356,7 +339,7 @@ router.post('/', async (req, res) => {
                 
                 // Notify agents
                 try {
-                    const socketService = req.app.get('socketService');
+                    const socketService = require('../server')?.socketService || globalThis.socketService || null;
                     if (socketService) {
                         const ticket = await Ticket.findById(currentState.currentTicketId);
                         if (ticket) {
