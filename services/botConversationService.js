@@ -588,18 +588,18 @@ class BotConversationService {
                 const selectedType = this.ticketTypes[selection - 1];
                 
                 // Build and send ticket card with all fields
-                const message = await this.buildFormFieldsMessage(selectedType.id);
-                await this.saveMessage(phoneNumber, message, 'system');
+                    const message = await this.buildFormFieldsMessage(selectedType.id);
+                    await this.saveMessage(phoneNumber, message, 'system');
                 
                 // Update conversation state to form filling
-                await this.updateConversationState(phoneNumber, 'form_filling', selectedType.id, {}, null, 'form_filling');
-                
-                return {
-                    success: true,
-                    ticketType: selectedType.id,
-                    message: message,
+                    await this.updateConversationState(phoneNumber, 'form_filling', selectedType.id, {}, null, 'form_filling');
+                    
+                    return {
+                        success: true,
+                        ticketType: selectedType.id,
+                        message: message,
                     interactiveSent: false
-                };
+                    };
             } else {
                 return {
                     success: false,
@@ -670,19 +670,37 @@ class BotConversationService {
             
             // All validation passed, create ticket
             const ticketResult = await this.createTicketFromFormData(phoneNumber, ticketType, formData);
-            
-            if (ticketResult.success) {
+                
+                if (ticketResult.success) {
                 const successMsg = `✅ Ticket ${ticketResult.ticket.ticket_number} has been created successfully!`;
                 await this.saveMessage(phoneNumber, successMsg, 'system');
+
+                // Try broadcasting real-time updates for dashboard (if socket service reachable globally)
+                try {
+                    const { executeQuery } = require('../config/database');
+                    const res = await executeQuery(`SELECT customer_id FROM tickets WHERE id = ?`, [ticketResult.ticket.id]);
+                    const customerId = res.success && res.data.length ? res.data[0].customer_id : null;
+                    const socketService = require('../server')?.socketService || globalThis.socketService || null;
+                    if (socketService) {
+                        socketService.broadcastToAgents('ticketCreated', { ticket: ticketResult.ticket });
+                        if (customerId) {
+                            await socketService.broadcastCustomerStats(customerId);
+                        }
+                        await socketService.broadcastDashboardStats();
+                    }
+                } catch (e) {
+                    // ignore: server singleton may not be resolvable here
+                }
+
                 await this.clearConversationState(phoneNumber);
-                
-                return {
-                    success: true,
+                    
+                    return {
+                        success: true,
                     action: 'ticket_created',
                     ticket: ticketResult.ticket,
                     message: successMsg
-                };
-            } else {
+                    };
+                } else {
                 const errorMsg = `❌ Failed to create ticket: ${ticketResult.error}\n\nPlease try again.`;
                 await this.saveMessage(phoneNumber, errorMsg, 'system');
                 return { success: false, error: ticketResult.error };
