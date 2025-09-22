@@ -10,7 +10,7 @@ class WhatsAppService {
     }
 
     // Send text message
-    async sendMessage(phoneNumber, message) {
+    async  sendMessage(phoneNumber, message) {
         try {
             // Guard: mock unless explicitly enabled
             const liveEnabled = "true";

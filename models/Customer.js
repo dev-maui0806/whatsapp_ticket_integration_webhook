@@ -109,6 +109,10 @@ class Customer {
         if (status) {
             query += ' AND t.status = ?';
             params.push(status);
+        } else {
+            // By default, exclude closed tickets unless specifically requested
+            query += ' AND t.status != ?';
+            params.push('closed');
         }
         
         query += ' ORDER BY t.created_at DESC';
