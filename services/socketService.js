@@ -1166,6 +1166,7 @@ class SocketService {
             const { executeQuery } = require('../config/database');
             const res = await executeQuery(query, [customerId]);
             if (res.success && res.data.length > 0) {
+                console.log(customerId, "customerUpdated", res.data[0])
                 this.broadcastToAgents('customerUpdated', res.data[0]);
             }
         } catch (e) {

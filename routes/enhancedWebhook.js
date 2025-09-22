@@ -306,8 +306,10 @@ router.post('/', async (req, res) => {
 
                         // Realtime: broadcast updated stats and ticket create event
                         try {
+                            console.log("**************formResult*************", formResult)
                             const socketService = req.app.get('socketService');
                             if (socketService && formResult.ticket) {
+                                console.log("##########socketService#############", formResult.ticket)
                                 socketService.broadcastToAgents('ticketCreated', { ticket: formResult.ticket });
                                 if (formResult.ticket.customer_id) {
                                     await socketService.broadcastCustomerStats(formResult.ticket.customer_id);
