@@ -29,6 +29,7 @@ class BotConversationService {
                 let key = String(k);
                 key = key.replace(/^screen_\d+_/i, ''); // strip screen_0_
                 key = key.replace(/_\d+$/i, ''); // drop trailing _0 index
+                key = key.replace(/____/g, '_');
                 key = key.replace(/__/g, '_'); // collapse double underscores
                 key = key.replace(/_/g, ' '); // underscores to spaces
                 key = key.trim().toLowerCase();
@@ -64,22 +65,27 @@ class BotConversationService {
                     comment: findVal('comment') || findVal('remarks') || findVal('note')
                 }),
                 'fund_request': () => ({
+                    vehicle_number: findVal('vehicle', 'number') || findVal('vehicle'),
+                    driver_number: findVal('driver', 'number') || findVal('driver'),
+                    upi_id: findVal('upi','id')|| findVal('upi'),
                     amount: findVal('amount') || findVal('amt'),
-                    upi_id: findVal('upi'),
                     comment: findVal('comment') || findVal('purpose')
                 }),
                 // fuel_request_1 = by amount
                 'fuel_request_1': () => ({
                     amount: findVal('amount') || findVal('amt'),
                     vehicle_number: findVal('vehicle', 'number') || findVal('vehicle'),
-                    fuel_type: findVal('fuel', 'type') || findVal('fuel'),
+                    driver_number: findVal('driver', 'number') || findVal('driver'),
+                    fuel_type: "amount",
                     location: findVal('location') || findVal('loc'),
+                    upi_id: findVal('upi','id')|| findVal('upi'),
                     comment: findVal('comment') || findVal('notes')
                 }),
                 // fuel_request_2 = by quantity
                 'fuel_request_2': () => ({
                     vehicle_number: findVal('vehicle', 'number') || findVal('vehicle'),
-                    fuel_type: findVal('fuel', 'type') || findVal('fuel'),
+                    driver_number: findVal('driver', 'number') || findVal('driver'),
+                    fuel_type: "quantity",
                     quantity: findVal('qty') || findVal('quantity'),
                     location: findVal('location') || findVal('loc'),
                     comment: findVal('comment') || findVal('notes')
