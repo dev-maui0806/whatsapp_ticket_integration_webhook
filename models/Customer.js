@@ -201,7 +201,9 @@ class Customer {
         const result = await executeQuery(query, [phoneNumber]);
         
         if (result.success && result.data.length > 0) {
-            return result.data[0];
+            let customer_info = result.data[0];
+            customer_info.success = result.success;
+            return customer_info;
         }
         
         return null;
