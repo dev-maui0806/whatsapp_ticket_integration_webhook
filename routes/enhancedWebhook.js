@@ -332,7 +332,7 @@ router.post('/', async (req, res) => {
                     if (formResult.action === 'ticket_created') {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
-                        
+                        console.log("*********************ticket_created", formResult, phoneNumber)
                         // Emit socket events for real-time dashboard updates
                         const io = req.app.get('io');
                         await botConversationService.emitTicketCreatedEvents(phoneNumber, formResult.ticket, io);
