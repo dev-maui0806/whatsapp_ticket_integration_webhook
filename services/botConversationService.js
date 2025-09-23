@@ -30,6 +30,7 @@ class BotConversationService {
                 key = key.replace(/^screen_\d+_/i, ''); // strip screen_0_
                 key = key.replace(/_\d+$/i, ''); // drop trailing _0 index
                 key = key.replace(/____/g, '_');
+                key = key.replace(/___/g, '_');
                 key = key.replace(/__/g, '_'); // collapse double underscores
                 key = key.replace(/_/g, ' '); // underscores to spaces
                 key = key.trim().toLowerCase();
@@ -61,7 +62,6 @@ class BotConversationService {
                     driver_number: findVal('driver', 'number') || findVal('driver'),
                     location: findVal('location') || findVal('loc'),
                     availability_date: findVal('available', 'date') || findVal('availability', 'date') || findVal('date'),
-                    availability_time: findVal('available', 'time') || findVal('availability', 'time') || findVal('time'),
                     comment: findVal('comment') || findVal('remarks') || findVal('note')
                 }),
                 'fund_request': () => ({
@@ -335,6 +335,11 @@ class BotConversationService {
                 driver_number: formData.driver_number || null,
                 location: formData.location || null,
                 comment: formData.comment || null,
+                upi_id:formData.upi_id || null,
+                amount:formData.amount || null,
+                quantity:formData.quantity || null,
+                fuel_type:formData.fuel_type || null,
+                availability_date:formData.availability_date || null,
                 status: 'open',
                 priority: 'medium'
             };
