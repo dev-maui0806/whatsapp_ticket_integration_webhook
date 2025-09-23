@@ -206,6 +206,36 @@ class Customer {
         
         return null;
     }
+
+    // Get customer statistics
+    async getStats() {
+        const query = `
+            SELECT 
+                COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer', 'closed') THEN t.id END) as total_tickets,
+                COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer') THEN t.id END) as open_tickets,
+                COUNT(DISTINCT CASE WHEN t.status IN ('in_progress') THEN t.id END) as in_progress_tickets,
+                COUNT(DISTINCT CASE WHEN t.status IN ('closed') THEN t.id END) as closed_tickets,
+                COUNT(DISTINCT CASE WHEN m.sender_type = 'customer' AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN m.id END) as pending_chats
+            FROM customers c
+            LEFT JOIN tickets t ON c.id = t.customer_id
+            LEFT JOIN messages m ON c.phone_number = m.phone_number
+            WHERE c.id = ?
+        `;
+        
+        const result = await executeQuery(query, [this.id]);
+        
+        if (result.success && result.data.length > 0) {
+            return result.data[0];
+        }
+        
+        return {
+            total_tickets: 0,
+            open_tickets: 0,
+            in_progress_tickets: 0,
+            closed_tickets: 0,
+            pending_chats: 0
+        };
+    }
 }
 
 module.exports = Customer;
