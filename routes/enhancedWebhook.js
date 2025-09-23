@@ -330,15 +330,16 @@ router.post('/', async (req, res) => {
                 
                 if (formResult.success) {
                     if (formResult.action === 'ticket_created') {
-                        await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
+                        await sendWhatsappMessage(phoneNumber, formResult.message);
                         console.log("*********************ticket_created", formResult, phoneNumber)
                         // Emit socket events for real-time dashboard updates
                         const io = req.app.get('io');
                         await botConversationService.emitTicketCreatedEvents(phoneNumber, formResult.ticket, io);
                     } else if (formResult.message) {
-                        await sendWhatsappMessage(phoneNumber, formResult.message);
+                        console.log("*********************ticket_created_messages", formResult, phoneNumber)
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
+                        await sendWhatsappMessage(phoneNumber, formResult.message);
                     }
                 } else {
                     await sendWhatsappMessage(phoneNumber, formResult.error);
