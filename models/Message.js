@@ -116,17 +116,18 @@ class Message {
         return result;
     }
 
-    // Get messages by phone number
-    static async getByPhoneNumber(phoneNumber, limit = 50, offset = 0) {
-        console.log("#######phoneNumber########", phoneNumber)
+    // Get messages by phone number with pagination and order
+    static async getByPhoneNumber(phoneNumber, limit = 50, offset = 0, order = 'ASC') {
+        const normalizedOrder = String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
         const query = `
             SELECT m.*, m.sender_type
             FROM messages m
             WHERE m.phone_number = ?
-            ORDER BY m.created_at ASC
+            ORDER BY m.created_at ${normalizedOrder}
+            LIMIT ? OFFSET ?
         `;
         
-        const result = await executeQuery(query, [phoneNumber]);
+        const result = await executeQuery(query, [phoneNumber, Number(limit), Number(offset)]);
         return result;
     }
 

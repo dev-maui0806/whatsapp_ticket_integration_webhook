@@ -62,9 +62,16 @@ router.get('/:phoneNumber/messages', async (req, res) => {
     try {
         console.log(req.params)
         const { phoneNumber } = req.params;
-        const { limit = 50, offset = 0 } = req.query;
+        // Support pagination windowing and sort order
+        // mode: latest window (default) order=DESC with limit/offset over latest
+        const { limit = 50, offset = 0, order = 'DESC' } = req.query;
         
-        const result = await Message.getByPhoneNumber(phoneNumber, parseInt(limit), parseInt(offset));
+        const result = await Message.getByPhoneNumber(
+            phoneNumber,
+            parseInt(limit),
+            parseInt(offset),
+            order
+        );
         console.log("*******reslt********", result);
         if (result.success) {
             res.status(200).json({
