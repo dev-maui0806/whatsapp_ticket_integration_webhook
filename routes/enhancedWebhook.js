@@ -73,7 +73,7 @@ router.post('/', async (req, res) => {
         // Log webhook data to database
         const logQuery = 'INSERT INTO webhook_logs (webhook_data) VALUES (?)';
         await executeQuery(logQuery, [JSON.stringify(req.body)]);
-        console.log("webhook_post", req.body);
+        console.log("!!!!!!!!!!!!!!**************webhook_post*************!!!!!!!!!!!!!!!!!!!!!!!!", req.body);
 
         // Process webhook data
         const messages = whatsappService.processWebhook(req.body);
