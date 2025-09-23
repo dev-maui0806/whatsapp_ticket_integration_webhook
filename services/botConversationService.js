@@ -835,6 +835,44 @@ class BotConversationService {
 
         return { isValid: true };
     }
+
+    // Emit socket events when ticket is created
+    async emitTicketCreatedEvents(phoneNumber, ticket, io = null) {
+        try {
+            console.log('📡 Emitting ticket created events for:', phoneNumber, ticket.ticket_number);
+            
+            // Get customer data with updated stats
+            const customer = await Customer.findByPhoneWithStats(phoneNumber);
+            if (customer && customer.success) {
+                // Emit customer updated event
+                if (io) {
+                    io.emit('customerUpdated', {
+                        id: customer.data.id,
+                        phone_number: phoneNumber,
+                        open_tickets: customer.data.open_tickets,
+                        pending_chats: customer.data.pending_chats,
+                        total_tickets: customer.data.total_tickets || 0,
+                        closed_tickets: customer.data.closed_tickets || 0
+                    });
+                    
+                    // Emit dashboard stats update
+                    io.emit('dashboardStatsUpdated', {
+                        type: 'ticket_created',
+                        ticket: ticket,
+                        customer: customer.data
+                    });
+                    
+                    console.log('✅ Ticket created events emitted successfully');
+                } else {
+                    console.warn('⚠️ Socket.IO instance not available for ticket created events');
+                }
+            } else {
+                console.warn('⚠️ Could not get customer stats for ticket created events');
+            }
+        } catch (error) {
+            console.error('❌ Error emitting ticket created events:', error);
+        }
+    }
 }
 
 module.exports = BotConversationService;

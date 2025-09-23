@@ -369,6 +369,38 @@ router.patch('/:id/close', async (req, res) => {
             // Get updated ticket data
             const updatedTicket = await Ticket.findById(ticketId);
             
+            // Emit socket events for real-time dashboard updates
+            try {
+                const io = req.app.get('io');
+                if (io && phoneNum) {
+                    // Get customer data with updated stats
+                    const customer = await Customer.findByPhoneWithStats(phoneNum);
+                    if (customer && customer.success) {
+                        // Emit customer updated event
+                        io.emit('customerUpdated', {
+                            id: customer.data.id,
+                            phone_number: phoneNum,
+                            open_tickets: customer.data.open_tickets,
+                            pending_chats: customer.data.pending_chats,
+                            total_tickets: customer.data.total_tickets || 0,
+                            closed_tickets: customer.data.closed_tickets || 0
+                        });
+                        
+                        // Emit dashboard stats update
+                        io.emit('dashboardStatsUpdated', {
+                            type: 'ticket_closed',
+                            ticket: updatedTicket,
+                            customer: customer.data
+                        });
+                        
+                        console.log('✅ Ticket closed events emitted successfully');
+                    }
+                }
+            } catch (socketError) {
+                console.error('❌ Error emitting ticket closed events:', socketError);
+                // Continue with response even if socket fails
+            }
+            
             res.status(200).json({
                 success: true,
                 data: updatedTicket

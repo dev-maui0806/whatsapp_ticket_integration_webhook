@@ -124,6 +124,35 @@ router.post('/', async (req, res) => {
             try {
                 if (savedIncoming && savedIncoming.success && savedIncoming.data) {
                     broadcastToDashboard(req, phoneNumber, savedIncoming.data.message_text, 'customer');
+                    
+                    // Emit customer stats update for new message (pending chats)
+                    try {
+                        const io = req.app.get('io');
+                        if (io) {
+                            const customer = await Customer.findByPhoneWithStats(phoneNumber);
+                            if (customer && customer.success) {
+                                io.emit('customerUpdated', {
+                                    id: customer.data.id,
+                                    phone_number: phoneNumber,
+                                    open_tickets: customer.data.open_tickets,
+                                    pending_chats: customer.data.pending_chats,
+                                    total_tickets: customer.data.total_tickets || 0,
+                                    closed_tickets: customer.data.closed_tickets || 0
+                                });
+                                
+                                // Emit dashboard stats update
+                                io.emit('dashboardStatsUpdated', {
+                                    type: 'new_message',
+                                    customer: customer.data
+                                });
+                                
+                                console.log('✅ New message events emitted successfully');
+                            }
+                        }
+                    } catch (statsError) {
+                        console.error('❌ Error emitting new message stats events:', statsError);
+                        // Continue processing even if stats update fails
+                    }
                 } else {
                     // Fallback broadcast without DB payload
                     broadcastToDashboard(req, phoneNumber, messageText, 'customer');
@@ -303,6 +332,10 @@ router.post('/', async (req, res) => {
                     if (formResult.action === 'ticket_created') {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
+                        
+                        // Emit socket events for real-time dashboard updates
+                        const io = req.app.get('io');
+                        await botConversationService.emitTicketCreatedEvents(phoneNumber, formResult.ticket, io);
                     } else if (formResult.message) {
                         await sendWhatsappMessage(phoneNumber, formResult.message);
                         broadcastToDashboard(req, phoneNumber, formResult.message, 'system');
