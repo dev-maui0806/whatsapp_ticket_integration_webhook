@@ -39,9 +39,9 @@ class Ticket {
         const query = `
             INSERT INTO tickets (
                 ticket_number, customer_id, assigned_agent_id, status, priority,
-                issue_type, vehicle_number, driver_number, location,
-                availability_date, availability_time, comment
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                issue_type, vehicle_number, driver_number, location, amount, quantity, upi_id,
+                availability_date, availability_time, comment, fuel_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
         const params = [
@@ -54,6 +54,10 @@ class Ticket {
             ticketData.vehicle_number || null,
             ticketData.driver_number || null,
             ticketData.location || null,
+            ticketData.amount || null,
+            ticketData.quantity || null,
+            ticketData.upi_id || null,
+            ticketData.fuel_type || null,
             ticketData.availability_date || null,
             ticketData.availability_time || null,
             ticketData.comment || null
