@@ -119,15 +119,20 @@ class Message {
     // Get messages by phone number with pagination and order
     static async getByPhoneNumber(phoneNumber, limit = 50, offset = 0, order = 'ASC') {
         const normalizedOrder = String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+        const limitNum = Math.max(0, parseInt(limit, 10) || 50);
+        const offsetNum = Math.max(0, parseInt(offset, 10) || 0);
+
+        // Some managed MySQL providers don't allow placeholders for LIMIT/OFFSET in prepared statements.
+        // Safely inline sanitized integers for LIMIT/OFFSET and keep phone number as a bound param.
         const query = `
             SELECT m.*, m.sender_type
             FROM messages m
             WHERE m.phone_number = ?
             ORDER BY m.created_at ${normalizedOrder}
-            LIMIT ? OFFSET ?
+            LIMIT ${limitNum} OFFSET ${offsetNum}
         `;
         
-        const result = await executeQuery(query, [phoneNumber, Number(limit), Number(offset)]);
+        const result = await executeQuery(query, [phoneNumber]);
         return result;
     }
 
