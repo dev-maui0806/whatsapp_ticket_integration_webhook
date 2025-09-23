@@ -860,7 +860,7 @@ class BotConversationService {
                     io.emit('dashboardStatsUpdated', {
                         type: 'ticket_created',
                         ticket: ticket,
-                        customer: customer.data
+                        customer: customer
                     });
                     
                     console.log('✅ Ticket created events emitted successfully');
