@@ -377,12 +377,12 @@ router.patch('/:id/close', async (req, res) => {
                     [ticketId]
                 );
                 const phoneNum = phoneRes.success && phoneRes.data.length ? phoneRes.data[0].phone_number : null;
-                
+                console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!io", io, phoneNum);
                 if (io && phoneNum) {
                     // Get customer data with updated stats
                     
                     const customer = await Customer.findByPhoneWithStats(phoneNum);
-                    console.loog("customerupdated", phoneNum, customer)
+                    console.loog("customerupdated!!!!!!!!!!!!!!!", io, phoneNum, customer)
                     if (customer && customer.success) {
                         // Emit customer updated event
                         io.to('customerUpdated', {
