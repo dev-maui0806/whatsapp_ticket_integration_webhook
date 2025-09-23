@@ -147,6 +147,72 @@ class WhatsAppService {
         }
     }
 
+    // Send FLOW template message with explicit flow_id and CTA
+    async sendFlowTemplateMessage(phoneNumber, templateName, flowId, languageCode = 'en', cta = 'Ticket Create', screen = 'DETAILS') {
+        try {
+            const liveEnabled = 'true';
+            if (!liveEnabled) {
+                return { success: true, mocked: true, note: 'Live send disabled' };
+            }
+            if (!this.apiUrl || !this.accessToken || !this.phoneNumberId) {
+                return { success: true, mocked: true };
+            }
+
+            const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
+            const toNumber = this.formatPhoneNumber(phoneNumber) || (phoneNumber && phoneNumber.toString()) || '';
+            if (!toNumber) return { success: false, error: 'Invalid phone number' };
+
+            const payload = {
+                messaging_product: 'whatsapp',
+                recipient_type: 'individual',
+                to: toNumber,
+                type: 'template',
+                template: {
+                    name: templateName,
+                    language: { code: languageCode },
+                    components: [
+                        { type: 'body', parameters: [] },
+                        {
+                            type: 'button',
+                            sub_type: 'flow',
+                            index: '0',
+                            parameters: [
+                                {
+                                    type: 'action',
+                                    action: {
+                                        flow_action_data: {
+                                            flow_id: String(flowId),
+                                            flow_cta: cta,
+                                            flow_action: 'navigate',
+                                            screen:"DETAILS"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            };
+
+            console.log('📤 Sending FLOW template payload:', JSON.stringify(payload, null, 2));
+            const response = await axios.post(url, payload, {
+                headers: {
+                    'Authorization': `Bearer ${this.accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+            return { success: true, messageId: response.data.messages?.[0]?.id, data: response.data };
+        } catch (error) {
+            const errMsg = error.response?.data || error.message;
+            console.error('WhatsApp FLOW Template API Error:', errMsg);
+            if (error.code === 'ECONNABORTED' || error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+                return { success: true, mocked: true, warning: `Template mocked due to network error: ${error.code || 'timeout'}` };
+            }
+            return { success: false, error: errMsg };
+        }
+    }
+
     // Send interactive list message
     async sendListMessage(phoneNumber, headerText, bodyText, footerText, buttonText, sections) {
         try {
@@ -453,6 +519,19 @@ class WhatsAppService {
                         if (message.type === 'interactive') {
                             const btn = message.interactive?.button_reply;
                             const list = message.interactive?.list_reply;
+                            const flow = message.interactive?.nfm_reply; // New Flows response
+                            if (flow) {
+                                return {
+                                    ...base,
+                                    text: 'FLOW_SUBMIT',
+                                    interactive: {
+                                        id: 'flow_submit',
+                                        title: flow?.name || 'Flow Submit',
+                                        source: 'flow',
+                                        data: { response_json: flow?.response_json }
+                                    }
+                                };
+                            }
                             return {
                                 ...base,
                                 text: (btn?.title || list?.title || '').trim(),

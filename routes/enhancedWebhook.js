@@ -317,6 +317,43 @@ router.post('/', async (req, res) => {
                 continue;
             }
 
+            // Handle FLOW template completion
+            if (currentState.automationChatState === 'template_form_filling') {
+                // If this is a normalized FLOW submit event
+                if (message.interactive && message.interactive.source === 'flow') {
+                    try {
+                        const raw = message.interactive.data?.response_json;
+                        let formData = {};
+                        if (typeof raw === 'string') {
+                            try { formData = JSON.parse(raw); } catch(e) { formData = {}; }
+                        } else if (raw && typeof raw === 'object') {
+                            formData = raw;
+                        }
+                        // Let service map FLOW fields to our DB schema
+                        const mapped = await botConversationService.mapFlowResponseToFormData(currentState.ticketType, formData);
+                        const completionResult = await botConversationService.handleTemplateFormCompletion(
+                            phoneNumber,
+                            mapped,
+                            currentState.ticketType
+                        );
+                        if (completionResult.success) {
+                            broadcastToDashboard(req, phoneNumber, completionResult.message, 'system');
+                            // Also emit customer stats update via socket events
+                            const io = req.app.get('io');
+                            await botConversationService.emitTicketCreatedEvents(phoneNumber, { ticket_number: completionResult.ticketNumber }, io);
+                        } else {
+                            await sendWhatsappMessage(phoneNumber, completionResult.error || 'Failed to process submission.');
+                        }
+                    } catch (e) {
+                        console.error('FLOW parse error:', e);
+                        await sendWhatsappMessage(phoneNumber, 'Could not parse your submission. Please try again.');
+                    }
+                } else {
+                    await sendWhatsappMessage(phoneNumber, 'Please complete the form and press the Submit button.');
+                }
+                continue;
+            }
+
 
             // Handle form filling state
             if (currentState.automationChatState === 'form_filling') {

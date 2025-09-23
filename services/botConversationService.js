@@ -11,11 +11,112 @@ class BotConversationService {
             { id: 'lock_open', name: 'Unlock', label: 'Unlock' },
             { id: 'lock_repair', name: 'Unlock Repair', label: 'Unlock Repair' },
             { id: 'fund_request', name: 'Funding Request', label: 'Funding Request' },
-            { id: 'fuel_request', name: 'fuel req by amt', label: 'fuel req by amt' },
-            { id: 'fuel_request1', name: 'fuel req by qty', label: 'fuel req by qty' }
+            { id: 'fuel_request1', name: 'fuel req by amt', label: 'fuel req by amt' },
+            { id: 'fuel_request2', name: 'fuel req by qty', label: 'fuel req by qty' }
         ];
     }
 
+    // Map FLOW response JSON to our expected formData by ticket type
+    async mapFlowResponseToFormData(ticketType, flowJson) {
+        try {
+            if (!flowJson || typeof flowJson !== 'object') return {};
+            // Flatten possible nested payloads
+            const flat = { ...flowJson, ...(flowJson.data || {}), ...(flowJson.values || {}) };
+            // Simple heuristics per type; adjust keys to your FLOW field names
+            const map = {
+                'lock_open': {
+                    vehicle_number: flat.vehicle_number || flat.vehicle || flat.veh_no,
+                    driver_number: flat.driver_number || flat.driver || flat.driver_no,
+                    location: flat.location || flat.loc,
+                    comment: flat.comment || flat.notes
+                },
+                'lock_repair': {
+                    vehicle_number: flat.vehicle_number || flat.vehicle || flat.veh_no,
+                    driver_number: flat.driver_number || flat.driver || flat.driver_no,
+                    location: flat.location || flat.loc,
+                    availability_date: flat.availability_date || flat.date,
+                    availability_time: flat.availability_time || flat.time,
+                    comment: flat.comment || flat.notes
+                },
+                'fund_request': {
+                    amount: flat.amount || flat.amt,
+                    upi_id: flat.upi_id || flat.upi,
+                    comment: flat.comment || flat.purpose
+                },
+                'fuel_request1': {
+                    amount: flat.amount || flat.amt,
+                    vehicle_number: flat.vehicle_number || flat.vehicle,
+                    fuel_type: flat.fuel_type || flat.fuel,
+                    location: flat.location || flat.loc,
+                    comment: flat.comment || flat.notes
+                },
+                'fuel_request2': {
+                    vehicle_number: flat.vehicle_number || flat.vehicle,
+                    fuel_type: flat.fuel_type || flat.fuel,
+                    quantity: flat.quantity || flat.qty,
+                    location: flat.location || flat.loc,
+                    comment: flat.comment || flat.notes
+                }
+            };
+            const picked = map[ticketType] || {};
+            // Remove undefined values
+            return Object.fromEntries(Object.entries(picked).filter(([,v]) => v !== undefined && v !== null && v !== ''));
+        } catch (e) {
+            console.error('mapFlowResponseToFormData error:', e);
+            return {};
+        }
+    }
+
+    // Handle FLOW template form completion → create ticket and notify
+    async handleTemplateFormCompletion(phoneNumber, formData, ticketType) {
+        try {
+            console.log('🎯 Handling FLOW template completion:', { phoneNumber, ticketType, formData });
+
+            // Defensive: ensure plain object
+            const data = formData && typeof formData === 'object' ? formData : {};
+
+            // Create ticket using normalized data
+            const ticketResult = await this.createTicketFromFormData(phoneNumber, ticketType, data);
+
+            if (ticketResult && ticketResult.success) {
+                const ticketNumber = ticketResult.ticket?.ticket_number || ticketResult.ticketNumber || '';
+                const confirmationMessage = `Ticket ${ticketNumber} Created.`;
+                await this.saveMessage(phoneNumber, confirmationMessage, 'system');
+
+                // Send confirmation to WhatsApp
+                try {
+                    const res = await whatsappService.sendMessage(
+                        whatsappService.formatPhoneNumber(phoneNumber) || phoneNumber,
+                        confirmationMessage
+                    );
+                    if (!res.success) {
+                        console.warn('WhatsApp confirmation failed:', res.error);
+                    }
+                } catch (e) {
+                    console.warn('WhatsApp send error (confirmation):', e.message);
+                }
+
+                // Reset conversation state
+                await this.updateConversationState(phoneNumber, 'idle', null, {}, null, 'idle');
+
+                return {
+                    success: true,
+                    action: 'ticket_created',
+                    ticketNumber: ticketNumber,
+                    ticket: ticketResult.ticket,
+                    message: confirmationMessage
+                };
+            }
+
+            return {
+                success: false,
+                error: (ticketResult && ticketResult.error) || 'Failed to create ticket'
+            };
+        } catch (error) {
+            console.error('Error handling FLOW template completion:', error);
+            return { success: false, error: error.message };
+        }
+    }
     async sendButtons(phoneNumber, header, body, footer, buttons) {
         try {
             const dashText = `${header}\n\n${body}`.trim();
@@ -587,18 +688,45 @@ class BotConversationService {
             if (selection >= 1 && selection <= this.ticketTypes.length) {
                 const selectedType = this.ticketTypes[selection - 1];
                 
-                // Build and send ticket card with all fields
-                const message = await this.buildFormFieldsMessage(selectedType.id);
-                await this.saveMessage(phoneNumber, message, 'system');
+                // Map ticket type -> FLOW template name and flow_id
+                const flowMap = {
+                    'lock_open': { name: 'create_lock_open', flowId: '1939451476901134' },
+                    'lock_repair': { name: 'create_lock_repair', flowId: '1303072734609675' },
+                    'fund_request': { name: 'fund_request_ticket', flowId: '2312780479171948' },
+                    'fuel_request1': { name: 'fuel_request_by_amount', flowId: '681274094991157' },
+                    'fuel_request2': { name: 'fuel_request_by_quantity', flowId: '4089472727960297' }
+                };
+                const flow = flowMap[selectedType.id];
+                if (!flow) {
+                    return { success: false, error: 'Unsupported ticket type for FLOW template.' };
+                }
                 
-                // Update conversation state to form filling
-                await this.updateConversationState(phoneNumber, 'form_filling', selectedType.id, {}, null, 'form_filling');
+                // Send WhatsApp FLOW template
+                const whatsappResult = await whatsappService.sendFlowTemplateMessage(
+                    phoneNumber,
+                    flow.name,
+                    flow.flowId,
+                    'en',
+                    'Ticket Create',
+                    'DETAILS'
+                );
+                if (!whatsappResult.success) {
+                    console.error('FLOW template send failed:', whatsappResult.error);
+                    return { success: false, error: 'Failed to send template. Please try again.' };
+                }
+                
+                // Update conversation state to wait for template completion
+                await this.updateConversationState(phoneNumber, 'template_form_filling', selectedType.id, {}, null, 'template_form_filling');
+                
+                // Save a plain system message for dashboard history context
+                const systemMessage = `Template sent for ${selectedType.name}. Please complete the form.`;
+                await this.saveMessage(phoneNumber, systemMessage, 'system');
                 
                 return {
                     success: true,
                     ticketType: selectedType.id,
-                    message: message,
-                    interactiveSent: false
+                    message: systemMessage,
+                    interactiveSent: true
                 };
             } else {
                 return {
