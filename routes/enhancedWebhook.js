@@ -323,14 +323,17 @@ router.post('/', async (req, res) => {
                 if (message.interactive && message.interactive.source === 'flow') {
                     try {
                         const raw = message.interactive.data?.response_json;
+                        console.log("$$$$$$$raw$$$$$$$$", raw)
                         let formData = {};
                         if (typeof raw === 'string') {
                             try { formData = JSON.parse(raw); } catch(e) { formData = {}; }
                         } else if (raw && typeof raw === 'object') {
                             formData = raw;
                         }
+                        console.log("*********qweqeqweqwewqewqesdffsdfdfsdf*********", formData);
                         // Let service map FLOW fields to our DB schema
                         const mapped = await botConversationService.mapFlowResponseToFormData(currentState.ticketType, formData);
+                        console.log("**************maped************", mapped)
                         const completionResult = await botConversationService.handleTemplateFormCompletion(
                             phoneNumber,
                             mapped,
