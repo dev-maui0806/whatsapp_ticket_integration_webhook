@@ -848,12 +848,12 @@ class BotConversationService {
                 console.log("customer!!!!!!!!!!!!!!!", customer);
                 if (io) {
                     io.emit('customerUpdated', {
-                        id: customer.data.id,
+                        id: customer.id,
                         phone_number: phoneNumber,
-                        open_tickets: customer.data.open_tickets,
-                        pending_chats: customer.data.pending_chats,
-                        total_tickets: customer.data.total_tickets || 0,
-                        closed_tickets: customer.data.closed_tickets || 0
+                        open_tickets: customer.open_tickets,
+                        pending_chats: customer.pending_chats,
+                        total_tickets: customer.total_tickets || 0,
+                        closed_tickets: customer.closed_tickets || 0
                     });
                     
                     // Emit dashboard stats update
