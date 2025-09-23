@@ -11,8 +11,8 @@ class BotConversationService {
             { id: 'lock_open', name: 'Unlock', label: 'Unlock' },
             { id: 'lock_repair', name: 'Unlock Repair', label: 'Unlock Repair' },
             { id: 'fund_request', name: 'Funding Request', label: 'Funding Request' },
-            { id: 'fuel_request1', name: 'fuel req by amt', label: 'fuel req by amt' },
-            { id: 'fuel_request2', name: 'fuel req by qty', label: 'fuel req by qty' }
+            { id: 'fuel_request_1', name: 'fuel req by amt', label: 'fuel req by amt' },
+            { id: 'fuel_request_2', name: 'fuel req by qty', label: 'fuel req by qty' }
         ];
     }
 
@@ -43,14 +43,14 @@ class BotConversationService {
                     upi_id: flat.upi_id || flat.upi,
                     comment: flat.comment || flat.purpose
                 },
-                'fuel_request1': {
+                'fuel_request_1': {
                     amount: flat.amount || flat.amt,
                     vehicle_number: flat.vehicle_number || flat.vehicle,
                     fuel_type: flat.fuel_type || flat.fuel,
                     location: flat.location || flat.loc,
                     comment: flat.comment || flat.notes
                 },
-                'fuel_request2': {
+                'fuel_request_2': {
                     vehicle_number: flat.vehicle_number || flat.vehicle,
                     fuel_type: flat.fuel_type || flat.fuel,
                     quantity: flat.quantity || flat.qty,
@@ -693,8 +693,8 @@ class BotConversationService {
                     'lock_open': { name: 'create_lock_open', flowId: '1939451476901134' },
                     'lock_repair': { name: 'create_lock_repair', flowId: '1303072734609675' },
                     'fund_request': { name: 'fund_request_ticket', flowId: '2312780479171948' },
-                    'fuel_request1': { name: 'fuel_request_by_amount', flowId: '681274094991157' },
-                    'fuel_request2': { name: 'fuel_request_by_quantity', flowId: '4089472727960297' }
+                    'fuel_request_1': { name: 'fuel_request_by_amount', flowId: '681274094991157' },
+                    'fuel_request_2': { name: 'fuel_request_by_quantity', flowId: '4089472727960297' }
                 };
                 const flow = flowMap[selectedType.id];
                 if (!flow) {
@@ -919,9 +919,9 @@ class BotConversationService {
                 return 1; // Unlock
             } else if (lowerText.includes('fund')) {
                 return 3; // Funding Request
-            } else if (lowerText.includes('fuel')) {
+            } else if (lowerText.includes('amt')) {
                 return 4; // Fuel Request
-            } else if (lowerText.includes('other')) {
+            } else if (lowerText.includes('qty')) {
                 return 5; // Other
             }
         }
