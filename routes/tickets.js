@@ -380,19 +380,19 @@ router.patch('/:id/close', async (req, res) => {
                     if (customer && customer.success) {
                         // Emit customer updated event
                         io.to('customerUpdated', {
-                            id: customer.data.id,
+                            id: customer.id,
                             phone_number: phoneNum,
-                            open_tickets: customer.data.open_tickets,
-                            pending_chats: customer.data.pending_chats,
-                            total_tickets: customer.data.total_tickets || 0,
-                            closed_tickets: customer.data.closed_tickets || 0
+                            open_tickets: customer.open_tickets,
+                            pending_chats: customer.pending_chats,
+                            total_tickets: customer.total_tickets || 0,
+                            closed_tickets: customer.closed_tickets || 0
                         });
                         
                         // Emit dashboard stats update
                         io.to('dashboardStatsUpdated', {
                             type: 'ticket_closed',
                             ticket: updatedTicket,
-                            customer: customer.data
+                            customer: customer
                         });
                         
                         console.log('✅ Ticket closed events emitted successfully');
