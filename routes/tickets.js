@@ -372,6 +372,12 @@ router.patch('/:id/close', async (req, res) => {
             // Emit socket events for real-time dashboard updates
             try {
                 const io = req.app.get('io');
+                const phoneRes = await executeQuery(
+                    `SELECT c.phone_number FROM customers c JOIN tickets t ON c.id = t.customer_id WHERE t.id = ? LIMIT 1`,
+                    [ticketId]
+                );
+                const phoneNum = phoneRes.success && phoneRes.data.length ? phoneRes.data[0].phone_number : null;
+                
                 if (io && phoneNum) {
                     // Get customer data with updated stats
                     
