@@ -11,8 +11,8 @@ class BotConversationService {
             { id: 'lock_open', name: 'Unlock', label: 'Unlock' },
             { id: 'lock_repair', name: 'Unlock Repair', label: 'Unlock Repair' },
             { id: 'fund_request', name: 'Funding Request', label: 'Funding Request' },
-            { id: 'fuel_request', name: 'Fuelrequestbyamount', label: 'Fuel request by amount' },
-            { id: 'fuel_request1', name: 'Fuelrequestbyquantity', label: 'Fuel request byquanti' }
+            { id: 'fuel_request', name: 'fuel req by amt', label: 'fuel req by amt' },
+            { id: 'fuel_request1', name: 'fuel req by qty', label: 'fuel req by qty' }
         ];
     }
 
