@@ -22,45 +22,75 @@ class BotConversationService {
             if (!flowJson || typeof flowJson !== 'object') return {};
             // Flatten possible nested payloads
             const flat = { ...flowJson, ...(flowJson.data || {}), ...(flowJson.values || {}) };
-            // Simple heuristics per type; adjust keys to your FLOW field names
-            const map = {
-                'lock_open': {
-                    vehicle_number: flat.vehicle_number || flat.vehicle || flat.veh_no,
-                    driver_number: flat.driver_number || flat.driver || flat.driver_no,
-                    location: flat.location || flat.loc,
-                    comment: flat.comment || flat.notes
-                },
-                'lock_repair': {
-                    vehicle_number: flat.vehicle_number || flat.vehicle || flat.veh_no,
-                    driver_number: flat.driver_number || flat.driver || flat.driver_no,
-                    location: flat.location || flat.loc,
-                    availability_date: flat.availability_date || flat.date,
-                    availability_time: flat.availability_time || flat.time,
-                    comment: flat.comment || flat.notes
-                },
-                'fund_request': {
-                    amount: flat.amount || flat.amt,
-                    upi_id: flat.upi_id || flat.upi,
-                    comment: flat.comment || flat.purpose
-                },
-                'fuel_request_1': {
-                    amount: flat.amount || flat.amt,
-                    vehicle_number: flat.vehicle_number || flat.vehicle,
-                    fuel_type: flat.fuel_type || flat.fuel,
-                    location: flat.location || flat.loc,
-                    comment: flat.comment || flat.notes
-                },
-                'fuel_request_2': {
-                    vehicle_number: flat.vehicle_number || flat.vehicle,
-                    fuel_type: flat.fuel_type || flat.fuel,
-                    quantity: flat.quantity || flat.qty,
-                    location: flat.location || flat.loc,
-                    comment: flat.comment || flat.notes
+            console.log('flat*******', flat);
+
+            // Normalize keys like "screen_0_Vehicle_Number_0" → "vehicle number"
+            const normalizedEntries = Object.entries(flat).map(([k, v]) => {
+                let key = String(k);
+                key = key.replace(/^screen_\d+_/i, ''); // strip screen_0_
+                key = key.replace(/_\d+$/i, ''); // drop trailing _0 index
+                key = key.replace(/__/g, '_'); // collapse double underscores
+                key = key.replace(/_/g, ' '); // underscores to spaces
+                key = key.trim().toLowerCase();
+                // remove non-alphanumerics except space
+                key = key.replace(/[^a-z0-9 ]+/g, '').trim();
+                return [key, v];
+            });
+
+            // Helper: find value by label containing all tokens
+            const findVal = (...tokens) => {
+                const t = tokens.map(s => s.toLowerCase());
+                for (const [label, value] of normalizedEntries) {
+                    const ok = t.every(tok => label.includes(tok));
+                    if (ok && value !== undefined && value !== null && value !== '') return value;
                 }
+                return undefined;
             };
-            const picked = map[ticketType] || {};
-            // Remove undefined values
-            return Object.fromEntries(Object.entries(picked).filter(([,v]) => v !== undefined && v !== null && v !== ''));
+
+            // Build per-type mapped object using robust label matching
+            const byType = {
+                'lock_open': () => ({
+                    vehicle_number: findVal('vehicle', 'number') || findVal('vehicle'),
+                    driver_number: findVal('driver', 'number') || findVal('driver'),
+                    location: findVal('location') || findVal('loc'),
+                    comment: findVal('comment') || findVal('remarks') || findVal('note')
+                }),
+                'lock_repair': () => ({
+                    vehicle_number: findVal('vehicle', 'number') || findVal('vehicle'),
+                    driver_number: findVal('driver', 'number') || findVal('driver'),
+                    location: findVal('location') || findVal('loc'),
+                    availability_date: findVal('available', 'date') || findVal('availability', 'date') || findVal('date'),
+                    availability_time: findVal('available', 'time') || findVal('availability', 'time') || findVal('time'),
+                    comment: findVal('comment') || findVal('remarks') || findVal('note')
+                }),
+                'fund_request': () => ({
+                    amount: findVal('amount') || findVal('amt'),
+                    upi_id: findVal('upi'),
+                    comment: findVal('comment') || findVal('purpose')
+                }),
+                // fuel_request_1 = by amount
+                'fuel_request_1': () => ({
+                    amount: findVal('amount') || findVal('amt'),
+                    vehicle_number: findVal('vehicle', 'number') || findVal('vehicle'),
+                    fuel_type: findVal('fuel', 'type') || findVal('fuel'),
+                    location: findVal('location') || findVal('loc'),
+                    comment: findVal('comment') || findVal('notes')
+                }),
+                // fuel_request_2 = by quantity
+                'fuel_request_2': () => ({
+                    vehicle_number: findVal('vehicle', 'number') || findVal('vehicle'),
+                    fuel_type: findVal('fuel', 'type') || findVal('fuel'),
+                    quantity: findVal('qty') || findVal('quantity'),
+                    location: findVal('location') || findVal('loc'),
+                    comment: findVal('comment') || findVal('notes')
+                })
+            };
+
+            const builder = byType[ticketType];
+            const mapped = builder ? builder() : {};
+            console.log("mapFlowResponseToFormData", mapped)
+            // Remove undefined/empty
+            return Object.fromEntries(Object.entries(mapped).filter(([,v]) => v !== undefined && v !== null && v !== ''));
         } catch (e) {
             console.error('mapFlowResponseToFormData error:', e);
             return {};
