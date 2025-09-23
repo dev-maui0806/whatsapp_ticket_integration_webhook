@@ -843,7 +843,7 @@ class BotConversationService {
             
             // Get customer data with updated stats
             const customer = await Customer.findByPhoneWithStats(phoneNumber);
-            if (customer && customer.success) {
+            if (customer) {
                 // Emit customer updated event
                 if (io) {
                     io.emit('customerUpdated', {
