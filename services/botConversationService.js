@@ -847,7 +847,7 @@ class BotConversationService {
                 // Emit customer updated event
                 console.log("customer!!!!!!!!!!!!!!!", customer);
                 if (io) {
-                    io.to('customerUpdated', {
+                    io.emit('customerUpdated', {
                         id: customer.id,
                         phone_number: phoneNumber,
                         open_tickets: customer.open_tickets,
@@ -857,7 +857,7 @@ class BotConversationService {
                     });
                     
                     // Emit dashboard stats update
-                    io.to('dashboardStatsUpdated', {
+                    io.emit('dashboardStatsUpdated', {
                         type: 'ticket_created',
                         ticket: ticket,
                         customer: customer
