@@ -374,10 +374,12 @@ router.patch('/:id/close', async (req, res) => {
                 const io = req.app.get('io');
                 if (io && phoneNum) {
                     // Get customer data with updated stats
+                    
                     const customer = await Customer.findByPhoneWithStats(phoneNum);
+                    console.loog("customerupdated", phoneNum, customer)
                     if (customer && customer.success) {
                         // Emit customer updated event
-                        io.emit('customerUpdated', {
+                        io.to('customerUpdated', {
                             id: customer.data.id,
                             phone_number: phoneNum,
                             open_tickets: customer.data.open_tickets,
@@ -387,7 +389,7 @@ router.patch('/:id/close', async (req, res) => {
                         });
                         
                         // Emit dashboard stats update
-                        io.emit('dashboardStatsUpdated', {
+                        io.to('dashboardStatsUpdated', {
                             type: 'ticket_closed',
                             ticket: updatedTicket,
                             customer: customer.data
