@@ -242,36 +242,6 @@ router.post('/:phoneNumber/tickets', async (req, res) => {
     }
 });
 
-// Acknowledge messages for a customer (when counselor opens chat)
-router.post('/:phoneNumber/acknowledge', async (req, res) => {
-    try {
-        const { phoneNumber } = req.params;
-        const { agent_id = 1 } = req.body;
-        
-        // Acknowledge all unacknowledged customer messages for this phone number
-        const result = await Message.acknowledgeByPhoneNumber(phoneNumber, agent_id);
-        
-        if (result.success) {
-            res.status(200).json({
-                success: true,
-                message: 'Messages acknowledged successfully',
-                acknowledged_count: result.data.affectedRows || 0
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: result.error || 'Failed to acknowledge messages'
-            });
-        }
-    } catch (error) {
-        console.error('Error acknowledging messages:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-
 // Update customer information
 router.patch('/:phoneNumber', async (req, res) => {
     try {

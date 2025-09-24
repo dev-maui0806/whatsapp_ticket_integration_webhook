@@ -78,6 +78,11 @@ class SocketService {
                 this.handleLeaveAgent(socket, agentId);
             });
 
+            // Handle message acknowledgment
+            socket.on('acknowledgeMessages', async (data) => {
+                await this.handleMessageAcknowledgment(socket, data);
+            });
+
             // Handle disconnection
             socket.on('disconnect', () => {
                 this.handleDisconnection(socket);
@@ -736,6 +741,53 @@ class SocketService {
         } catch (error) {
             console.error('Error handling agent action:', error);
             socket.emit('error', { message: 'Failed to complete action' });
+        }
+    }
+
+    async handleMessageAcknowledgment(socket, data) {
+        try {
+            const connectionInfo = this.activeConnections.get(socket.id);
+            if (!connectionInfo || connectionInfo.type !== 'agent') {
+                socket.emit('error', { message: 'Only agents can acknowledge messages' });
+                return;
+            }
+
+            const { phoneNumber } = data;
+            
+            if (!phoneNumber) {
+                socket.emit('error', { message: 'Phone number is required' });
+                return;
+            }
+
+            // Acknowledge all unacknowledged customer messages for this phone number
+            const result = await Message.acknowledgeByPhoneNumber(phoneNumber, connectionInfo.userId);
+            
+            if (result.success) {
+                const acknowledgedCount = result.data.affectedRows || 0;
+                
+                // Notify the agent who acknowledged
+                socket.emit('messagesAcknowledged', {
+                    success: true,
+                    phoneNumber: phoneNumber,
+                    acknowledged_count: acknowledgedCount,
+                    message: `Acknowledged ${acknowledgedCount} messages`
+                });
+
+                // Broadcast customer update to all agents for real-time pending count update
+                this.io.to('agents').emit('customerUpdated', {
+                    phone_number: phoneNumber,
+                    pending_chats: 0, // Will be recalculated by client
+                    acknowledged_count: acknowledgedCount
+                });
+
+                console.log(`✅ Agent ${connectionInfo.userId} acknowledged ${acknowledgedCount} messages for ${phoneNumber}`);
+            } else {
+                socket.emit('error', { message: result.error || 'Failed to acknowledge messages' });
+            }
+
+        } catch (error) {
+            console.error('Error handling message acknowledgment:', error);
+            socket.emit('error', { message: 'Failed to acknowledge messages' });
         }
     }
 
