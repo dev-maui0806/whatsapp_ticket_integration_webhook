@@ -138,14 +138,14 @@ class Customer {
         return 0;
     }
 
-    // getphone pending chats count (unread messages from customer)
+    // getphone pending chats count (unacknowledged messages from customer)
     async getPendingChatsCount() {
         const query = `
             SELECT COUNT(*) as count
             FROM messages m
             WHERE m.phone_number = ? 
             AND m.sender_type = 'customer'
-            AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            AND m.acknowledged = FALSE
         `;
         
         const result = await executeQuery(query, [this.phone_number]);
@@ -169,7 +169,7 @@ class Customer {
                 COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer') THEN t.id END) as open_tickets,
                 COUNT(DISTINCT CASE WHEN t.status IN ('in_progress') THEN t.id END) as in_progress_tickets,
                 COUNT(DISTINCT CASE WHEN t.status IN ('closed') THEN t.id END) as closed_tickets,
-                COUNT(DISTINCT CASE WHEN m.sender_type = 'customer' AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN m.id END) as pending_chats
+                COUNT(DISTINCT CASE WHEN m.sender_type = 'customer' AND m.acknowledged = FALSE THEN m.id END) as pending_chats
             FROM customers c
             LEFT JOIN tickets t ON c.id = t.customer_id
             LEFT JOIN messages m ON c.phone_number = m.phone_number
@@ -215,7 +215,7 @@ class Customer {
                 COUNT(DISTINCT CASE WHEN t.status IN ('open', 'in_progress', 'pending_customer') THEN t.id END) as open_tickets,
                 COUNT(DISTINCT CASE WHEN t.status IN ('in_progress') THEN t.id END) as in_progress_tickets,
                 COUNT(DISTINCT CASE WHEN t.status IN ('closed') THEN t.id END) as closed_tickets,
-                COUNT(DISTINCT CASE WHEN m.sender_type = 'customer' AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN m.id END) as pending_chats
+                COUNT(DISTINCT CASE WHEN m.sender_type = 'customer' AND m.acknowledged = FALSE THEN m.id END) as pending_chats
             FROM customers c
             LEFT JOIN tickets t ON c.id = t.customer_id
             LEFT JOIN messages m ON c.phone_number = m.phone_number

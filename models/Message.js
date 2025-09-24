@@ -12,6 +12,9 @@ class Message {
         this.media_url = data.media_url;
         this.is_from_whatsapp = data.is_from_whatsapp;
         this.whatsapp_message_id = data.whatsapp_message_id;
+        this.acknowledged = data.acknowledged || false;
+        this.acknowledged_at = data.acknowledged_at;
+        this.acknowledged_by = data.acknowledged_by;
         this.created_at = data.created_at;
     }
 
@@ -164,7 +167,7 @@ class Message {
             FROM messages m
             WHERE m.phone_number = ? 
             AND m.sender_type = 'customer'
-            AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            AND m.acknowledged = FALSE
         `;
         
         const result = await executeQuery(query, [phoneNumber]);
@@ -180,6 +183,62 @@ class Message {
     async markAsProcessed() {
         // This could be extended to track message processing status
         return { success: true };
+    }
+
+    // Acknowledge message (mark as viewed by counselor)
+    async acknowledge(agentId = null) {
+        const query = `
+            UPDATE messages 
+            SET acknowledged = TRUE, 
+                acknowledged_at = CURRENT_TIMESTAMP,
+                acknowledged_by = ?
+            WHERE id = ?
+        `;
+        
+        const result = await executeQuery(query, [agentId, this.id]);
+        
+        if (result.success) {
+            this.acknowledged = true;
+            this.acknowledged_at = new Date();
+            this.acknowledged_by = agentId;
+        }
+        
+        return result;
+    }
+
+    // Acknowledge multiple messages by phone number
+    static async acknowledgeByPhoneNumber(phoneNumber, agentId = null) {
+        const query = `
+            UPDATE messages 
+            SET acknowledged = TRUE, 
+                acknowledged_at = CURRENT_TIMESTAMP,
+                acknowledged_by = ?
+            WHERE phone_number = ? 
+            AND sender_type = 'customer'
+            AND acknowledged = FALSE
+        `;
+        
+        const result = await executeQuery(query, [agentId, phoneNumber]);
+        return result;
+    }
+
+    // Get unacknowledged messages count for phone number
+    static async getUnacknowledgedCountByPhoneNumber(phoneNumber) {
+        const query = `
+            SELECT COUNT(*) as count
+            FROM messages m
+            WHERE m.phone_number = ? 
+            AND m.sender_type = 'customer'
+            AND m.acknowledged = FALSE
+        `;
+        
+        const result = await executeQuery(query, [phoneNumber]);
+        
+        if (result.success && result.data.length > 0) {
+            return result.data[0].count;
+        }
+        
+        return 0;
     }
 }
 

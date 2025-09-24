@@ -57,10 +57,10 @@ class Ticket {
             ticketData.amount || null,
             ticketData.quantity || null,
             ticketData.upi_id || null,
-            ticketData.fuel_type || null,
             ticketData.availability_date || null,
             ticketData.availability_time || null,
-            ticketData.comment || null
+            ticketData.comment || null,
+            ticketData.fuel_type || null,
         ];
 
         const result = await executeQuery(query, params);
